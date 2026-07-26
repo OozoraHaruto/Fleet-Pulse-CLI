@@ -132,6 +132,18 @@ Diagnostics report config paths, bind safety, collector settings, schema version
 
 ## Installation
 
+Install the latest Linux or macOS release from GitHub:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/OozoraHaruto/Fleet-Pulse-CLI/main/install.sh | sh
+```
+
+To pin a version:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/OozoraHaruto/Fleet-Pulse-CLI/main/install.sh | FLEETPULSE_VERSION=v1.2.3 sh
+```
+
 FleetPulse includes lifecycle artifacts for each supported target:
 
 - Linux: [packaging/linux](packaging/linux)

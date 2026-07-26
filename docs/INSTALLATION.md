@@ -2,6 +2,24 @@
 
 FleetPulse ships as a single binary plus platform lifecycle artifacts.
 
+## Latest GitHub Release
+
+On Linux and macOS, install the latest published release from GitHub:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/OozoraHaruto/Fleet-Pulse-CLI/main/install.sh | sh
+```
+
+The bootstrap installer detects the local OS and architecture, downloads the matching release archive and `.sha256` file from GitHub Releases, verifies the checksum, unpacks the archive, and runs the bundled platform installer. It uses `sudo` automatically when the current user is not root.
+
+Set `FLEETPULSE_VERSION` to install a specific release tag:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/OozoraHaruto/Fleet-Pulse-CLI/main/install.sh | FLEETPULSE_VERSION=v1.2.3 sh
+```
+
+Set `START_SERVICE=false` to install without starting the service.
+
 ## Linux
 
 From a release archive, run:
