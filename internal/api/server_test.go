@@ -40,6 +40,14 @@ func (s staticService) System(context.Context) schema.SystemSection {
 	return s.snapshot.System
 }
 
+func (s staticService) Health(context.Context) schema.Health {
+	return schema.Health{
+		Status:           "ok",
+		SchemaVersion:    "v1",
+		CollectionStatus: "ok",
+	}
+}
+
 func TestHealthReturnsJSON(t *testing.T) {
 	handler := api.NewHandler(staticService{snapshot: testSnapshot()})
 
@@ -183,6 +191,64 @@ func TestRoutesReturnJSONErrors(t *testing.T) {
 				t.Fatalf("error body is empty: %s", res.Body.String())
 			}
 		})
+	}
+}
+
+func TestAuthRejectsMissingAndInvalidBearerToken(t *testing.T) {
+	handler := api.NewHandlerWithOptions(staticService{snapshot: testSnapshot()}, api.Options{
+		AuthEnabled: true,
+		BearerToken: "secret-token",
+	})
+
+	tests := []struct {
+		name   string
+		header string
+	}{
+		{name: "missing"},
+		{name: "invalid", header: "Bearer wrong-token"},
+		{name: "wrong scheme", header: "Basic secret-token"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/v1/stats", nil)
+			if tt.header != "" {
+				req.Header.Set("Authorization", tt.header)
+			}
+			res := httptest.NewRecorder()
+
+			handler.ServeHTTP(res, req)
+
+			if res.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want %d", res.Code, http.StatusUnauthorized)
+			}
+			var body map[string]string
+			if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
+				t.Fatal(err)
+			}
+			if body["error"] != "unauthorized" {
+				t.Fatalf("error = %q, want unauthorized", body["error"])
+			}
+			if body["token"] != "" {
+				t.Fatalf("response leaked token field: %s", res.Body.String())
+			}
+		})
+	}
+}
+
+func TestAuthAllowsValidBearerToken(t *testing.T) {
+	handler := api.NewHandlerWithOptions(staticService{snapshot: testSnapshot()}, api.Options{
+		AuthEnabled: true,
+		BearerToken: "secret-token",
+	})
+	req := httptest.NewRequest(http.MethodGet, "/v1/stats", nil)
+	req.Header.Set("Authorization", "Bearer secret-token")
+	res := httptest.NewRecorder()
+
+	handler.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %s", res.Code, http.StatusOK, res.Body.String())
 	}
 }
 

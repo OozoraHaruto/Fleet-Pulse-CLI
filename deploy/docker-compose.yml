@@ -1,0 +1,25 @@
+services:
+  fleetpulse:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: fleetpulse:local
+    command:
+      - serve
+      - -addr
+      - 0.0.0.0:8080
+      - -auth=true
+      - -token-file
+      - /var/lib/fleetpulse/token
+      - -deployment-target
+      - docker
+    ports:
+      - "8080:8080"
+    volumes:
+      - fleetpulse-state:/var/lib/fleetpulse
+      - fleetpulse-config:/etc/fleetpulse
+    restart: unless-stopped
+
+volumes:
+  fleetpulse-state:
+  fleetpulse-config:

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/haruto/fleetpulse/internal/schema"
@@ -11,15 +12,69 @@ import (
 
 const schemaVersion = "v1"
 
+type Options struct {
+	Now      func() time.Time
+	CacheTTL time.Duration
+	Collect  func(context.Context) (schema.Snapshot, error)
+}
+
 type Service struct {
-	now func() time.Time
+	now       func() time.Time
+	cacheTTL  time.Duration
+	collect   func(context.Context) (schema.Snapshot, error)
+	mu        sync.Mutex
+	cache     schema.Snapshot
+	cacheAt   time.Time
+	hasCache  bool
+	lastError string
 }
 
 func NewService() *Service {
-	return &Service{now: func() time.Time { return time.Now().UTC() }}
+	return NewServiceWithOptions(Options{})
+}
+
+func NewServiceWithOptions(options Options) *Service {
+	if options.Now == nil {
+		options.Now = func() time.Time { return time.Now().UTC() }
+	}
+	service := &Service{
+		now:      options.Now,
+		cacheTTL: options.CacheTTL,
+	}
+	if options.Collect != nil {
+		service.collect = options.Collect
+	} else {
+		service.collect = service.collectLive
+	}
+	return service
 }
 
 func (s *Service) Snapshot(ctx context.Context) schema.Snapshot {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := s.now()
+	if s.hasCache && s.cacheTTL > 0 && now.Sub(s.cacheAt) < s.cacheTTL {
+		return s.cache
+	}
+
+	snapshot, err := s.collect(ctx)
+	if err != nil {
+		s.lastError = err.Error()
+		if s.hasCache {
+			return s.cache
+		}
+		return s.unavailableSnapshot(now, err)
+	}
+
+	s.lastError = ""
+	s.cache = snapshot
+	s.cacheAt = now
+	s.hasCache = true
+	return snapshot
+}
+
+func (s *Service) collectLive(ctx context.Context) (schema.Snapshot, error) {
 	return schema.Snapshot{
 		Timestamp:     s.now(),
 		SchemaVersion: schemaVersion,
@@ -29,6 +84,23 @@ func (s *Service) Snapshot(ctx context.Context) schema.Snapshot {
 		Memory:        s.Memory(ctx),
 		Disks:         s.Disks(ctx),
 		GPU:           s.GPU(ctx),
+	}, nil
+}
+
+func (s *Service) Health(context.Context) schema.Health {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	collectionStatus := "ok"
+	if s.lastError != "" {
+		collectionStatus = "degraded"
+	}
+	return schema.Health{
+		Status:           "ok",
+		SchemaVersion:    schemaVersion,
+		CollectionStatus: collectionStatus,
+		Timestamp:        s.now(),
+		LastError:        s.lastError,
 	}
 }
 
@@ -77,6 +149,24 @@ func (s *Service) target() schema.TargetIdentity {
 		Hostname:     hostname,
 		Platform:     runtime.GOOS,
 		Architecture: runtime.GOARCH,
+	}
+}
+
+func (s *Service) unavailableSnapshot(now time.Time, err error) schema.Snapshot {
+	status := schema.SectionStatus{
+		Status: schema.StatusUnavailable,
+		Scope:  schema.ScopeUnavailable,
+		Error:  err.Error(),
+	}
+	return schema.Snapshot{
+		Timestamp:     now,
+		SchemaVersion: schemaVersion,
+		Target:        s.target(),
+		System:        schema.SystemSection{SectionStatus: status},
+		CPU:           schema.CPUSection{SectionStatus: status},
+		Memory:        schema.MemorySection{SectionStatus: status},
+		Disks:         schema.DisksSection{SectionStatus: status, Volumes: []schema.Volume{}},
+		GPU:           schema.GPUSection{SectionStatus: status},
 	}
 }
 

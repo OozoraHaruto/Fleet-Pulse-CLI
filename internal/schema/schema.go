@@ -42,6 +42,14 @@ type Snapshot struct {
 	GPU           GPUSection     `json:"gpu"`
 }
 
+type Health struct {
+	Status           string    `json:"status"`
+	SchemaVersion    string    `json:"schema_version"`
+	CollectionStatus string    `json:"collection_status"`
+	Timestamp        time.Time `json:"timestamp,omitempty"`
+	LastError        string    `json:"last_error,omitempty"`
+}
+
 type SystemSection struct {
 	SectionStatus
 	UptimeSeconds *uint64      `json:"uptime_seconds"`

@@ -2,12 +2,16 @@ package collector_test
 
 import (
 	"context"
+	"errors"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/haruto/fleetpulse/internal/collector"
 	"github.com/haruto/fleetpulse/internal/schema"
 )
+
+var errCollectionFailed = errors.New("collection failed")
 
 func TestSnapshotIncludesStableIdentityAndPlatform(t *testing.T) {
 	service := collector.NewService()
@@ -70,5 +74,92 @@ func TestSnapshotKeepsUnavailableSectionsExplicit(t *testing.T) {
 		if section.Scope == "" {
 			t.Fatalf("%s scope is empty", name)
 		}
+	}
+}
+
+func TestSnapshotReusesCacheInsideTTL(t *testing.T) {
+	now := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
+	calls := 0
+	service := collector.NewServiceWithOptions(collector.Options{
+		Now:      func() time.Time { return now },
+		CacheTTL: time.Minute,
+		Collect: func(context.Context) (schema.Snapshot, error) {
+			calls++
+			return schema.Snapshot{
+				Timestamp:     now,
+				SchemaVersion: "v1",
+				Target:        schema.TargetIdentity{Hostname: "node-a"},
+			}, nil
+		},
+	})
+
+	first := service.Snapshot(context.Background())
+	second := service.Snapshot(context.Background())
+
+	if calls != 1 {
+		t.Fatalf("collect calls = %d, want 1", calls)
+	}
+	if !first.Timestamp.Equal(second.Timestamp) {
+		t.Fatalf("cached timestamp changed from %s to %s", first.Timestamp, second.Timestamp)
+	}
+}
+
+func TestSnapshotRefreshesCacheAfterTTL(t *testing.T) {
+	now := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
+	calls := 0
+	service := collector.NewServiceWithOptions(collector.Options{
+		Now:      func() time.Time { return now },
+		CacheTTL: time.Minute,
+		Collect: func(context.Context) (schema.Snapshot, error) {
+			calls++
+			return schema.Snapshot{
+				Timestamp:     now,
+				SchemaVersion: "v1",
+				Target:        schema.TargetIdentity{Hostname: "node-a"},
+			}, nil
+		},
+	})
+
+	service.Snapshot(context.Background())
+	now = now.Add(time.Minute + time.Second)
+	service.Snapshot(context.Background())
+
+	if calls != 2 {
+		t.Fatalf("collect calls = %d, want 2", calls)
+	}
+}
+
+func TestSnapshotKeepsLastSuccessWhenRefreshFails(t *testing.T) {
+	now := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
+	calls := 0
+	service := collector.NewServiceWithOptions(collector.Options{
+		Now:      func() time.Time { return now },
+		CacheTTL: time.Second,
+		Collect: func(context.Context) (schema.Snapshot, error) {
+			calls++
+			if calls == 2 {
+				return schema.Snapshot{}, errCollectionFailed
+			}
+			return schema.Snapshot{
+				Timestamp:     now,
+				SchemaVersion: "v1",
+				Target:        schema.TargetIdentity{Hostname: "node-a"},
+			}, nil
+		},
+	})
+
+	first := service.Snapshot(context.Background())
+	now = now.Add(2 * time.Second)
+	second := service.Snapshot(context.Background())
+	health := service.Health(context.Background())
+
+	if !second.Timestamp.Equal(first.Timestamp) {
+		t.Fatalf("snapshot timestamp = %s, want cached %s", second.Timestamp, first.Timestamp)
+	}
+	if health.CollectionStatus != "degraded" {
+		t.Fatalf("CollectionStatus = %q, want degraded", health.CollectionStatus)
+	}
+	if health.LastError == "" {
+		t.Fatal("LastError is empty")
 	}
 }

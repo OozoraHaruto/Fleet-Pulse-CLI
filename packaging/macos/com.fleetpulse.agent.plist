@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.fleetpulse.agent</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/fleetpulse</string>
+    <string>serve</string>
+    <string>-config</string>
+    <string>/Library/Application Support/FleetPulse/fleetpulse.json</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/var/log/fleetpulse.log</string>
+  <key>StandardErrorPath</key>
+  <string>/var/log/fleetpulse.err</string>
+</dict>
+</plist>

@@ -1,0 +1,21 @@
+[Unit]
+Description=FleetPulse telemetry agent
+Documentation=https://github.com/haruto/fleetpulse
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fleetpulse
+Group=fleetpulse
+ExecStart=/usr/local/bin/fleetpulse serve -config /etc/fleetpulse/fleetpulse.json
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/fleetpulse /var/log/fleetpulse
+
+[Install]
+WantedBy=multi-user.target

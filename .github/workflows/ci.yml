@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: Go checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Check formatting
+        run: |
+          test -z "$(gofmt -l .)"
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Build binary
+        run: go build -o dist/fleetpulse ./cmd/fleetpulse
+
+  matrix-build:
+    name: Build ${{ matrix.goos }} ${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build target
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          suffix=""
+          if [ "$GOOS" = "windows" ]; then suffix=".exe"; fi
+          go build -trimpath -o "dist/fleetpulse-${GOOS}-${GOARCH}${suffix}" ./cmd/fleetpulse
+
+  packaging:
+    name: Packaging validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check shell scripts
+        run: |
+          bash -n packaging/linux/install.sh
+          bash -n packaging/linux/uninstall.sh
+          bash -n packaging/macos/install.sh
+          bash -n packaging/macos/uninstall.sh
+
+      - name: Check PowerShell scripts
+        shell: pwsh
+        run: |
+          [scriptblock]::Create((Get-Content packaging/windows/install.ps1 -Raw)) | Out-Null
+          [scriptblock]::Create((Get-Content packaging/windows/uninstall.ps1 -Raw)) | Out-Null
+
+      - name: Validate Docker build
+        run: docker build -t fleetpulse:ci .
