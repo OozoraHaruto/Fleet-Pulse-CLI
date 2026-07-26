@@ -57,11 +57,19 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+
+      - name: Resolve CI release version
+        id: release
+        run: |
+          git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main || true
+          bash scripts/resolve-release-version.sh --mode ci >> "$GITHUB_OUTPUT"
 
       - name: Build artifact
         env:
@@ -69,15 +77,15 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           ARTIFACT_OS: ${{ matrix.artifact_os }}
           CGO_ENABLED: "0"
-          RELEASE_VERSION: ci-${{ github.run_number }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
         run: |
           bash scripts/build-release-artifact.sh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: fleetpulse-ci-${{ github.run_number }}-${{ matrix.artifact_os }}-${{ matrix.goarch }}
-          path: dist/fleetpulse-ci-${{ github.run_number }}-${{ matrix.artifact_os }}-${{ matrix.goarch }}/**
+          name: fleetpulse-${{ steps.release.outputs.version }}-${{ matrix.artifact_os }}-${{ matrix.goarch }}
+          path: dist/fleetpulse-${{ steps.release.outputs.version }}-${{ matrix.artifact_os }}-${{ matrix.goarch }}/**
           retention-days: 14
 
   packaging:
@@ -95,6 +103,7 @@ jobs:
       - name: Check shell scripts
         run: |
           bash -n install.sh
+          bash -n scripts/resolve-release-version.sh
           bash -n packaging/linux/install.sh
           bash -n packaging/linux/uninstall.sh
           bash -n packaging/macos/install.sh
@@ -108,6 +117,9 @@ jobs:
 
       - name: Check release artifact layout
         run: bash tests/release-artifact-layout.sh
+
+      - name: Check release version resolution
+        run: bash tests/release-version.sh
 
       - name: Check macOS installer clears quarantine
         run: bash tests/macos-install-clears-quarantine.sh

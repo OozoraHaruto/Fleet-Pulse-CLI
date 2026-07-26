@@ -186,9 +186,10 @@ The CI workflow runs formatting checks, unit/API tests, cross-platform builds, p
 
 Releases are intentionally infrequent:
 
-- Normal pushes and pull requests run CI only.
-- Pushing a semver tag such as `v1.2.3` runs the release workflow.
-- The release workflow can also be started manually from GitHub Actions with a version input.
+- `version.txt` is the stable release source of truth and must contain a value such as `v1.0.0`.
+- Pull requests run CI and build prerelease-named artifacts without publishing a GitHub release.
+- Pushes to `main` run the release workflow as a GitHub prerelease using the main-branch version plus a unique `-ci.<run>.<sha>` suffix.
+- Pushing a semver tag such as `v1.2.3`, or starting the release workflow manually, publishes the final version from `version.txt`.
 
 Release artifacts include Linux, macOS, and Windows archives, SHA-256 checksum files, platform-specific installer files, operator docs, and a versioned GHCR Docker image.
 

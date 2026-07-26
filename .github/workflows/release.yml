@@ -2,17 +2,9 @@ name: Release
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Release version, for example v1.2.3"
-        required: true
-        type: string
-      prerelease:
-        description: "Mark the GitHub release as a prerelease"
-        required: true
-        default: false
-        type: boolean
   push:
+    branches:
+      - main
     tags:
       - "v*.*.*"
 
@@ -28,27 +20,70 @@ jobs:
       version: ${{ steps.release.outputs.version }}
       prerelease: ${{ steps.release.outputs.prerelease }}
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Resolve release version
         id: release
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            version="${{ inputs.version }}"
-            prerelease="${{ inputs.prerelease }}"
+          git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main || true
+
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_type }}" = "branch" ]; then
+            mode="ci"
           else
-            version="${GITHUB_REF_NAME}"
-            prerelease="false"
+            mode="final"
           fi
 
-          case "$version" in
-            v[0-9]*.[0-9]*.[0-9]*) ;;
+          bash scripts/resolve-release-version.sh --mode "$mode" >> "$GITHUB_OUTPUT"
+
+      - name: Validate release tag
+        if: github.ref_type == 'tag'
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if [ "$GITHUB_REF_NAME" != "$RELEASE_VERSION" ]; then
+            echo "tag $GITHUB_REF_NAME must match version.txt $RELEASE_VERSION" >&2
+            exit 1
+          fi
+
+      - name: Validate final version is unique
+        if: steps.release.outputs.prerelease == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if gh release view "$RELEASE_VERSION" >/dev/null 2>&1; then
+            echo "release $RELEASE_VERSION already exists" >&2
+            exit 1
+          fi
+
+      - name: Remove existing CI prerelease
+        if: steps.release.outputs.prerelease == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if gh release view "$RELEASE_VERSION" >/dev/null 2>&1; then
+            gh release delete "$RELEASE_VERSION" --cleanup-tag --yes
+          fi
+
+      - name: Summarize release metadata
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          PRERELEASE: ${{ steps.release.outputs.prerelease }}
+        run: |
+          case "$PRERELEASE" in
+            true|false) ;;
             *)
-              echo "version must look like v1.2.3" >&2
+              echo "invalid prerelease output: $PRERELEASE" >&2
               exit 1
               ;;
           esac
 
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+          echo "release version: $RELEASE_VERSION"
+          echo "prerelease: $PRERELEASE"
 
   release:
     name: Build release artifacts

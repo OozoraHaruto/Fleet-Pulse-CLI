@@ -23,9 +23,13 @@ Each release should include:
 
 ## Release Automation
 
-The `Release` GitHub Actions workflow can be started manually with `workflow_dispatch` by entering a version such as `v1.2.3`. It also runs automatically when a matching semver tag like `v1.2.3` is pushed.
+`version.txt` is the stable release source of truth. It must contain a final semantic version such as `v1.0.0`.
 
-Normal pushes and pull requests run CI only. They do not publish releases.
+The CI workflow resolves artifact versions from `origin/main:version.txt` when that ref is available, then falls back to the checked-out `version.txt`. CI artifact builds always append a unique prerelease suffix in the form `-ci.<run>.<sha>`.
+
+The `Release` GitHub Actions workflow runs automatically for pushes to `main` and publishes a GitHub prerelease using the same `-ci.<run>.<sha>` suffix. It also runs for matching semver tags like `v1.2.3` and can be started manually with `workflow_dispatch`; those final releases use the exact value in `version.txt` and are not marked as prereleases. Tag releases fail if the pushed tag does not match `version.txt`.
+
+Pull requests run CI only. They do not publish GitHub releases.
 
 ## Compatibility
 
