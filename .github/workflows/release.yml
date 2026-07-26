@@ -130,12 +130,26 @@ jobs:
       - name: Check Docker release variants
         run: bash tests/docker-release-variants.sh
 
+  docker-checks:
+    name: Docker build check ${{ matrix.docker_target }}
+    runs-on: ubuntu-latest
+    needs: metadata
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - docker_target: runtime
+          - docker_target: cuda
+          - docker_target: rocm
+          - docker_target: intel-gpu
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
       - name: Validate Docker build
-        run: |
-          docker build --target runtime -t fleetpulse:release-check .
-          docker build --target cuda -t fleetpulse:release-check-cuda .
-          docker build --target rocm -t fleetpulse:release-check-rocm .
-          docker build --target intel-gpu -t fleetpulse:release-check-intel-gpu .
+        env:
+          DOCKER_TARGET: ${{ matrix.docker_target }}
+        run: docker build --target "$DOCKER_TARGET" -t "fleetpulse:release-check-${DOCKER_TARGET}" .
 
   release:
     name: Build release artifacts
@@ -143,6 +157,7 @@ jobs:
     needs:
       - metadata
       - checks
+      - docker-checks
     strategy:
       fail-fast: false
       matrix:
@@ -195,6 +210,7 @@ jobs:
     needs:
       - metadata
       - checks
+      - docker-checks
     strategy:
       fail-fast: false
       matrix:
@@ -241,6 +257,7 @@ jobs:
     needs:
       - metadata
       - checks
+      - docker-checks
       - release
       - docker
     steps:

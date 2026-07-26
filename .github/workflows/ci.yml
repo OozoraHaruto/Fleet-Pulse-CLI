@@ -129,9 +129,22 @@ jobs:
       - name: Check Docker release variants
         run: bash tests/docker-release-variants.sh
 
+  docker-build:
+    name: Docker build ${{ matrix.docker_target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - docker_target: runtime
+          - docker_target: cuda
+          - docker_target: rocm
+          - docker_target: intel-gpu
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
       - name: Validate Docker build
-        run: |
-          docker build --target runtime -t fleetpulse:ci .
-          docker build --target cuda -t fleetpulse:ci-cuda .
-          docker build --target rocm -t fleetpulse:ci-rocm .
-          docker build --target intel-gpu -t fleetpulse:ci-intel-gpu .
+        env:
+          DOCKER_TARGET: ${{ matrix.docker_target }}
+        run: docker build --target "$DOCKER_TARGET" -t "fleetpulse:ci-${DOCKER_TARGET}" .

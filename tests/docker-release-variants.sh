@@ -14,6 +14,17 @@ require_contains() {
   fi
 }
 
+reject_contains() {
+  local file="$1"
+  local pattern="$2"
+  local description="$3"
+
+  if grep -Fq -- "$pattern" "$repo_root/$file"; then
+    echo "$file contains rejected $description: $pattern" >&2
+    exit 1
+  fi
+}
+
 require_contains Dockerfile "FROM nvidia/cuda:" "NVIDIA CUDA runtime base image"
 require_contains Dockerfile "AS cuda" "named CUDA image target"
 require_contains Dockerfile "NVIDIA_DRIVER_CAPABILITIES=compute,utility" "nvidia-smi driver capability"
@@ -22,20 +33,27 @@ require_contains Dockerfile "AS rocm" "named ROCm image target"
 require_contains Dockerfile "FROM ubuntu:24.04 AS intel-gpu" "named Intel GPU image target"
 require_contains Dockerfile "intel-gpu-tools" "Intel GPU tooling package"
 
-require_contains .github/workflows/ci.yml "--target runtime" "standard Docker target validation"
-require_contains .github/workflows/ci.yml "--target cuda" "CUDA Docker target validation"
-require_contains .github/workflows/ci.yml "--target rocm" "ROCm Docker target validation"
-require_contains .github/workflows/ci.yml "--target intel-gpu" "Intel GPU Docker target validation"
+require_contains .github/workflows/ci.yml "docker_target: runtime" "standard Docker CI matrix target"
+require_contains .github/workflows/ci.yml "docker_target: cuda" "CUDA Docker CI matrix target"
+require_contains .github/workflows/ci.yml "docker_target: rocm" "ROCm Docker CI matrix target"
+require_contains .github/workflows/ci.yml "docker_target: intel-gpu" "Intel GPU Docker CI matrix target"
+require_contains .github/workflows/ci.yml '--target "$DOCKER_TARGET"' "CI Docker matrix build command"
+require_contains .github/workflows/ci.yml 'name: Docker build ${{ matrix.docker_target }}' "parallel Docker validation job"
 require_contains .github/workflows/ci.yml "bash tests/docker-release-variants.sh" "Docker release variant check"
+reject_contains .github/workflows/ci.yml "fleetpulse:ci-rocm" "sequential ROCm CI Docker validation"
+reject_contains .github/workflows/ci.yml "fleetpulse:ci-intel-gpu" "sequential Intel GPU CI Docker validation"
 
 require_contains .github/workflows/release.yml "docker_target: runtime" "standard Docker release matrix target"
 require_contains .github/workflows/release.yml "docker_target: cuda" "CUDA Docker release matrix target"
 require_contains .github/workflows/release.yml "docker_target: rocm" "ROCm Docker release matrix target"
 require_contains .github/workflows/release.yml "docker_target: intel-gpu" "Intel GPU Docker release matrix target"
+require_contains .github/workflows/release.yml 'name: Docker build check ${{ matrix.docker_target }}' "parallel Docker release validation job"
 require_contains .github/workflows/release.yml 'IMAGE_SUFFIX: ${{ matrix.image_suffix }}' "Docker release matrix suffix env"
 require_contains .github/workflows/release.yml '--target "$DOCKER_TARGET"' "Docker release target build"
 require_contains .github/workflows/release.yml ':${RELEASE_VERSION}${IMAGE_SUFFIX}' "Docker release variant image tag"
 require_contains .github/workflows/release.yml "bash tests/docker-release-variants.sh" "Docker release variant check"
+reject_contains .github/workflows/release.yml "fleetpulse:release-check-rocm" "sequential ROCm release Docker validation"
+reject_contains .github/workflows/release.yml "fleetpulse:release-check-intel-gpu" "sequential Intel GPU release Docker validation"
 
 require_contains docs/DOCKER.md "-cuda" "CUDA image documentation"
 require_contains docs/DOCKER.md "nvidia-smi" "NVIDIA GPU smoke test documentation"
