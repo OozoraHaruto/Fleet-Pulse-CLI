@@ -29,6 +29,8 @@ The CI workflow resolves artifact versions from `origin/main:version.txt` when t
 
 The `Release` GitHub Actions workflow runs automatically for pushes to `main` and publishes a GitHub prerelease using the same `-ci.<run>.<sha>` suffix. It also runs for matching semver tags like `v1.2.3` and can be started manually with `workflow_dispatch`; those final releases use the exact value in `version.txt` and are not marked as prereleases. Tag releases fail if the pushed tag does not match `version.txt`.
 
+Before building artifacts, pushing Docker images, deleting/replacing an existing CI prerelease, or publishing a GitHub release, the release workflow runs formatting, Go tests, binary build, packaging script checks, release layout checks, installer tests, and Docker build validation.
+
 Pull requests run CI only. They do not publish GitHub releases.
 
 ## Compatibility

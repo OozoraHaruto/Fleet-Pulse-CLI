@@ -59,16 +59,6 @@ jobs:
             exit 1
           fi
 
-      - name: Remove existing CI prerelease
-        if: steps.release.outputs.prerelease == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          if gh release view "$RELEASE_VERSION" >/dev/null 2>&1; then
-            gh release delete "$RELEASE_VERSION" --cleanup-tag --yes
-          fi
-
       - name: Summarize release metadata
         env:
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
@@ -85,10 +75,67 @@ jobs:
           echo "release version: $RELEASE_VERSION"
           echo "prerelease: $PRERELEASE"
 
+  checks:
+    name: Release checks
+    runs-on: ubuntu-latest
+    needs: metadata
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Check formatting
+        run: |
+          test -z "$(gofmt -l .)"
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Build binary
+        run: go build -o dist/fleetpulse ./cmd/fleetpulse
+
+      - name: Check shell scripts
+        run: |
+          bash -n install.sh
+          bash -n scripts/resolve-release-version.sh
+          bash -n packaging/linux/install.sh
+          bash -n packaging/linux/uninstall.sh
+          bash -n packaging/macos/install.sh
+          bash -n packaging/macos/uninstall.sh
+
+      - name: Check PowerShell scripts
+        shell: pwsh
+        run: |
+          [scriptblock]::Create((Get-Content packaging/windows/install.ps1 -Raw)) | Out-Null
+          [scriptblock]::Create((Get-Content packaging/windows/uninstall.ps1 -Raw)) | Out-Null
+
+      - name: Check release artifact layout
+        run: bash tests/release-artifact-layout.sh
+
+      - name: Check release version resolution
+        run: bash tests/release-version.sh
+
+      - name: Check macOS installer clears quarantine
+        run: bash tests/macos-install-clears-quarantine.sh
+
+      - name: Check GitHub installers
+        run: |
+          bash tests/github-install-latest.sh
+          bash tests/github-install-prerelease.sh
+
+      - name: Validate Docker build
+        run: docker build -t fleetpulse:release-check .
+
   release:
     name: Build release artifacts
     runs-on: ubuntu-latest
-    needs: metadata
+    needs:
+      - metadata
+      - checks
     strategy:
       fail-fast: false
       matrix:
@@ -117,9 +164,6 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Test before release build
-        run: go test ./...
-
       - name: Build artifact
         env:
           GOOS: ${{ matrix.goos }}
@@ -141,7 +185,9 @@ jobs:
   docker:
     name: Build and publish Docker image
     runs-on: ubuntu-latest
-    needs: metadata
+    needs:
+      - metadata
+      - checks
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -172,9 +218,20 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - metadata
+      - checks
       - release
       - docker
     steps:
+      - name: Remove existing CI prerelease
+        if: needs.metadata.outputs.prerelease == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          if gh release view "$RELEASE_VERSION" >/dev/null 2>&1; then
+            gh release delete "$RELEASE_VERSION" --cleanup-tag --yes
+          fi
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
