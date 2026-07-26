@@ -127,8 +127,15 @@ jobs:
           bash tests/github-install-latest.sh
           bash tests/github-install-prerelease.sh
 
+      - name: Check Docker release variants
+        run: bash tests/docker-release-variants.sh
+
       - name: Validate Docker build
-        run: docker build -t fleetpulse:release-check .
+        run: |
+          docker build --target runtime -t fleetpulse:release-check .
+          docker build --target cuda -t fleetpulse:release-check-cuda .
+          docker build --target rocm -t fleetpulse:release-check-rocm .
+          docker build --target intel-gpu -t fleetpulse:release-check-intel-gpu .
 
   release:
     name: Build release artifacts
@@ -188,6 +195,18 @@ jobs:
     needs:
       - metadata
       - checks
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - docker_target: runtime
+            image_suffix: ""
+          - docker_target: cuda
+            image_suffix: "-cuda"
+          - docker_target: rocm
+            image_suffix: "-rocm"
+          - docker_target: intel-gpu
+            image_suffix: "-intel-gpu"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -201,16 +220,19 @@ jobs:
 
       - name: Build Docker image
         env:
+          DOCKER_TARGET: ${{ matrix.docker_target }}
+          IMAGE_SUFFIX: ${{ matrix.image_suffix }}
           RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
         run: |
-          image="ghcr.io/${GITHUB_REPOSITORY,,}:${RELEASE_VERSION}"
-          docker build --build-arg VERSION="$RELEASE_VERSION" --build-arg COMMIT="$GITHUB_SHA" -t "$image" .
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:${RELEASE_VERSION}${IMAGE_SUFFIX}"
+          docker build --target "$DOCKER_TARGET" --build-arg VERSION="$RELEASE_VERSION" --build-arg COMMIT="$GITHUB_SHA" -t "$image" .
 
       - name: Push Docker image
         env:
+          IMAGE_SUFFIX: ${{ matrix.image_suffix }}
           RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
         run: |
-          image="ghcr.io/${GITHUB_REPOSITORY,,}:${RELEASE_VERSION}"
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:${RELEASE_VERSION}${IMAGE_SUFFIX}"
           docker push "$image"
 
   publish:
