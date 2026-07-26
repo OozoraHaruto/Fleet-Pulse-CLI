@@ -63,16 +63,25 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Build target
+      - name: Build artifact
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           ARTIFACT_OS: ${{ matrix.artifact_os }}
           CGO_ENABLED: "0"
+          RELEASE_VERSION: ci-${{ github.run_number }}
         run: |
-          suffix=""
-          if [ "$GOOS" = "windows" ]; then suffix=".exe"; fi
-          go build -trimpath -o "dist/fleetpulse-${ARTIFACT_OS}-${GOARCH}${suffix}" ./cmd/fleetpulse
+          bash scripts/build-release-artifact.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleetpulse-${{ matrix.artifact_os }}-${{ matrix.goarch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.sha256
+          retention-days: 14
 
   packaging:
     name: Packaging validation
