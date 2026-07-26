@@ -21,7 +21,7 @@ jobs:
       prerelease: ${{ steps.release.outputs.prerelease }}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -81,12 +81,13 @@ jobs:
     needs: metadata
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache-dependency-path: go.mod
 
       - name: Check formatting
         run: |
@@ -130,6 +131,9 @@ jobs:
       - name: Check Docker release variants
         run: bash tests/docker-release-variants.sh
 
+      - name: Check GitHub Actions warnings
+        run: bash tests/github-actions-warnings.sh
+
   docker-checks:
     name: Docker build check ${{ matrix.docker_target }}
     runs-on: ubuntu-latest
@@ -144,7 +148,7 @@ jobs:
           - docker_target: intel-gpu
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Validate Docker build
         env:
@@ -179,12 +183,13 @@ jobs:
             artifact_os: macos
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache-dependency-path: go.mod
 
       - name: Build artifact
         env:
@@ -196,7 +201,7 @@ jobs:
         run: bash scripts/build-release-artifact.sh
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fleetpulse-${{ matrix.artifact_os }}-${{ matrix.goarch }}
           path: |
@@ -225,10 +230,10 @@ jobs:
             image_suffix: "-intel-gpu"
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -272,13 +277,13 @@ jobs:
           fi
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: dist
           merge-multiple: true
 
       - name: Publish release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.metadata.outputs.version }}
           target_commitish: ${{ github.sha }}

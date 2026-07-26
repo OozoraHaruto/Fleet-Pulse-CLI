@@ -12,12 +12,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache-dependency-path: go.mod
 
       - name: Check formatting
         run: |
@@ -53,14 +54,15 @@ jobs:
             artifact_os: macos
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache-dependency-path: go.mod
 
       - name: Resolve CI release version
         id: release
@@ -79,7 +81,7 @@ jobs:
           bash scripts/build-release-artifact.sh
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fleetpulse-${{ steps.release.outputs.version }}-${{ matrix.artifact_os }}-${{ matrix.goarch }}
           path: dist/fleetpulse-${{ steps.release.outputs.version }}-${{ matrix.artifact_os }}-${{ matrix.goarch }}/**
@@ -90,12 +92,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache-dependency-path: go.mod
 
       - name: Check shell scripts
         run: |
@@ -129,6 +132,9 @@ jobs:
       - name: Check Docker release variants
         run: bash tests/docker-release-variants.sh
 
+      - name: Check GitHub Actions warnings
+        run: bash tests/github-actions-warnings.sh
+
   docker-build:
     name: Docker build ${{ matrix.docker_target }}
     runs-on: ubuntu-latest
@@ -142,7 +148,7 @@ jobs:
           - docker_target: intel-gpu
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Validate Docker build
         env:
