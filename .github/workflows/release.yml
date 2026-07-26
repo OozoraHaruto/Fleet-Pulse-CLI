@@ -134,6 +134,8 @@ jobs:
         run: |
           docker build --target runtime -t fleetpulse:release-check .
           docker build --target cuda -t fleetpulse:release-check-cuda .
+          docker build --target rocm -t fleetpulse:release-check-rocm .
+          docker build --target intel-gpu -t fleetpulse:release-check-intel-gpu .
 
   release:
     name: Build release artifacts
@@ -201,6 +203,10 @@ jobs:
             image_suffix: ""
           - docker_target: cuda
             image_suffix: "-cuda"
+          - docker_target: rocm
+            image_suffix: "-rocm"
+          - docker_target: intel-gpu
+            image_suffix: "-intel-gpu"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

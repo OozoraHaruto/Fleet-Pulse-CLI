@@ -7,7 +7,7 @@ FleetPulse uses semantic versioning.
 - Linux: amd64, arm64
 - Windows: amd64
 - macOS: amd64, arm64
-- Docker: amd64, arm64 standard image and NVIDIA CUDA `-cuda` image
+- Docker: amd64, arm64 standard image plus NVIDIA CUDA `-cuda`, AMD ROCm `-rocm`, and Intel GPU tools `-intel-gpu` images
 
 ## Release Contents
 
@@ -16,7 +16,7 @@ Each release should include:
 - Native binaries.
 - Platform-specific packaging scripts and service templates at the archive root.
 - Operator documentation, excluding internal `docs/superpowers` planning artifacts.
-- Docker image or image digest for the standard and NVIDIA CUDA variants.
+- Docker image or image digest for the standard and GPU-tooling variants.
 - SHA-256 checksum file.
 - Release notes.
 - Git tag, commit SHA, CI run, and schema version traceability.
@@ -31,7 +31,7 @@ The `Release` GitHub Actions workflow runs automatically for pushes to `main` an
 
 Before building artifacts, pushing Docker images, deleting/replacing an existing CI prerelease, or publishing a GitHub release, the release workflow runs formatting, Go tests, binary build, packaging script checks, release layout checks, installer tests, and Docker build validation.
 
-Docker releases publish `ghcr.io/<owner>/<repo>:<version>` and `ghcr.io/<owner>/<repo>:<version>-cuda`. The CUDA image is based on NVIDIA's CUDA base image and is intended for Docker hosts configured with NVIDIA GPU access.
+Docker releases publish `ghcr.io/<owner>/<repo>:<version>`, `ghcr.io/<owner>/<repo>:<version>-cuda`, `ghcr.io/<owner>/<repo>:<version>-rocm`, and `ghcr.io/<owner>/<repo>:<version>-intel-gpu`. The GPU-tooling images are intended for Docker hosts configured with the matching host GPU devices and drivers.
 
 Pull requests run CI only. They do not publish GitHub releases.
 

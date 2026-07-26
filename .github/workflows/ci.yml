@@ -133,3 +133,5 @@ jobs:
         run: |
           docker build --target runtime -t fleetpulse:ci .
           docker build --target cuda -t fleetpulse:ci-cuda .
+          docker build --target rocm -t fleetpulse:ci-rocm .
+          docker build --target intel-gpu -t fleetpulse:ci-intel-gpu .
