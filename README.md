@@ -33,19 +33,19 @@ go build -o fleetpulse ./cmd/fleetpulse
 Run locally without authentication:
 
 ```sh
-./fleetpulse serve -addr 127.0.0.1:8080
+./fleetpulse serve -addr 127.0.0.1:35338
 ```
 
 Check health:
 
 ```sh
-curl http://127.0.0.1:8080/health
+curl http://127.0.0.1:35338/health
 ```
 
 Fetch the full telemetry snapshot:
 
 ```sh
-curl http://127.0.0.1:8080/v1/stats
+curl http://127.0.0.1:35338/v1/stats
 ```
 
 ## Authentication
@@ -56,7 +56,7 @@ Run a network-exposed instance:
 
 ```sh
 ./fleetpulse serve \
-  -addr 0.0.0.0:8080 \
+  -addr 0.0.0.0:35338 \
   -auth=true \
   -token-file /var/lib/fleetpulse/token
 ```
@@ -66,7 +66,7 @@ On first authenticated startup, FleetPulse provisions a protected token file and
 Use authenticated requests:
 
 ```sh
-curl -H "Authorization: Bearer <token>" http://127.0.0.1:8080/v1/stats
+curl -H "Authorization: Bearer <token>" http://127.0.0.1:35338/v1/stats
 ```
 
 Token operations:

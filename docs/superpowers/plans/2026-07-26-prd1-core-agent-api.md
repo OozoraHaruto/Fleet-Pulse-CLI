@@ -165,7 +165,7 @@ Expected: PASS.
 
 **Interfaces:**
 - Consumes: `api.NewHandler` and `collector.NewService`.
-- Produces: runnable binary with `-addr` flag defaulting to `127.0.0.1:8080`.
+- Produces: runnable binary with `-addr` flag defaulting to `127.0.0.1:35338`.
 
 - [ ] **Step 1: Implement entrypoint**
 

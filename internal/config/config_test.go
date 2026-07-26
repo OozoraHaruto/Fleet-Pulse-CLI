@@ -12,8 +12,8 @@ import (
 func TestDefaultConfigIsLocalAndUnauthenticated(t *testing.T) {
 	cfg := config.Default()
 
-	if cfg.Addr != "127.0.0.1:8080" {
-		t.Fatalf("Addr = %q, want 127.0.0.1:8080", cfg.Addr)
+	if cfg.Addr != "127.0.0.1:35338" {
+		t.Fatalf("Addr = %q, want 127.0.0.1:35338", cfg.Addr)
 	}
 	if cfg.AuthEnabled {
 		t.Fatal("AuthEnabled = true, want false for local default")

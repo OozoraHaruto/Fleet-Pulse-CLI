@@ -4,7 +4,7 @@ FleetPulse starts with safe defaults, then applies an optional JSON config file,
 
 ## JSON Fields
 
-- `addr`: bind address, default `127.0.0.1:8080`.
+- `addr`: bind address, default `127.0.0.1:35338`.
 - `auth_enabled`: whether bearer authentication is required.
 - `token_file`: path to the protected bearer token file.
 - `cache_ttl`: snapshot cache TTL, such as `10s`.

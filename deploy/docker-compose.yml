@@ -7,14 +7,14 @@ services:
     command:
       - serve
       - -addr
-      - 0.0.0.0:8080
+      - 0.0.0.0:35338
       - -auth=true
       - -token-file
       - /var/lib/fleetpulse/token
       - -deployment-target
       - docker
     ports:
-      - "8080:8080"
+      - "35338:35338"
     volumes:
       - fleetpulse-state:/var/lib/fleetpulse
       - fleetpulse-config:/etc/fleetpulse

@@ -55,7 +55,7 @@ func TestRunConfigShowIncludesSafeDefaults(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0; stderr = %s", code, stderr.String())
 	}
-	if !strings.Contains(stdout.String(), `"addr": "127.0.0.1:8080"`) {
+	if !strings.Contains(stdout.String(), `"addr": "127.0.0.1:35338"`) {
 		t.Fatalf("config output missing default addr: %s", stdout.String())
 	}
 	if !strings.Contains(stdout.String(), `"auth_enabled": false`) {

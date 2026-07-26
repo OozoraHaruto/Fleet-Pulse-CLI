@@ -3,7 +3,7 @@
 ## Serve
 
 ```sh
-fleetpulse serve -addr 127.0.0.1:8080
+fleetpulse serve -addr 127.0.0.1:35338
 ```
 
 Important flags:

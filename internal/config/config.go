@@ -28,7 +28,7 @@ type Config struct {
 
 func Default() Config {
 	return Config{
-		Addr:              "127.0.0.1:8080",
+		Addr:              "127.0.0.1:35338",
 		AuthEnabled:       false,
 		TokenFile:         defaultTokenFile(),
 		CacheTTL:          10 * time.Second,

@@ -26,7 +26,7 @@ install -m 0755 "$BINARY_SOURCE" "$PREFIX/bin/fleetpulse"
 if [ ! -f "$CONFIG_DIR/fleetpulse.json" ]; then
   cat >"$CONFIG_DIR/fleetpulse.json" <<EOF
 {
-  "addr": "127.0.0.1:8080",
+  "addr": "127.0.0.1:35338",
   "auth_enabled": false,
   "token_file": "$STATE_DIR/token",
   "cache_ttl": "10s",

@@ -10,12 +10,12 @@ Run with persistent state:
 
 ```sh
 docker run --rm \
-  -p 8080:8080 \
+  -p 35338:35338 \
   -v fleetpulse-state:/var/lib/fleetpulse \
   fleetpulse:local
 ```
 
-The default Docker command binds to `0.0.0.0:8080` with authentication enabled and stores the token at `/var/lib/fleetpulse/token`.
+The default Docker command binds to `0.0.0.0:35338` with authentication enabled and stores the token at `/var/lib/fleetpulse/token`.
 
 Use Compose:
 

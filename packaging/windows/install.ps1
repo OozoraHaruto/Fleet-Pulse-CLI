@@ -20,7 +20,7 @@ $ConfigPath = Join-Path $StateDir "fleetpulse.json"
 $TokenPath = Join-Path $StateDir "token"
 if (!(Test-Path $ConfigPath)) {
   @{
-    addr = "127.0.0.1:8080"
+    addr = "127.0.0.1:35338"
     auth_enabled = $false
     token_file = $TokenPath
     cache_ttl = "10s"

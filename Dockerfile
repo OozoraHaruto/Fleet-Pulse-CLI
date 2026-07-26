@@ -10,7 +10,7 @@ RUN addgroup -S fleetpulse && adduser -S -G fleetpulse fleetpulse
 COPY --from=build /out/fleetpulse /usr/local/bin/fleetpulse
 RUN mkdir -p /etc/fleetpulse /var/lib/fleetpulse && chown -R fleetpulse:fleetpulse /etc/fleetpulse /var/lib/fleetpulse
 USER fleetpulse
-EXPOSE 8080
+EXPOSE 35338
 VOLUME ["/var/lib/fleetpulse", "/etc/fleetpulse"]
 ENTRYPOINT ["/usr/local/bin/fleetpulse"]
-CMD ["serve", "-addr", "0.0.0.0:8080", "-auth=true", "-token-file", "/var/lib/fleetpulse/token", "-deployment-target", "docker"]
+CMD ["serve", "-addr", "0.0.0.0:35338", "-auth=true", "-token-file", "/var/lib/fleetpulse/token", "-deployment-target", "docker"]
