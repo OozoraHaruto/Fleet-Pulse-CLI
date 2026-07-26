@@ -170,7 +170,7 @@ Releases are intentionally infrequent:
 - Pushing a semver tag such as `v1.2.3` runs the release workflow.
 - The release workflow can also be started manually from GitHub Actions with a version input.
 
-Release artifacts include Linux, macOS, and Windows archives, SHA-256 checksum files, packaging/docs, and a versioned GHCR Docker image.
+Release artifacts include Linux, macOS, and Windows archives, SHA-256 checksum files, platform-specific installer files, operator docs, and a versioned GHCR Docker image.
 
 See [docs/RELEASE.md](docs/RELEASE.md).
 

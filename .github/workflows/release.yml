@@ -92,24 +92,7 @@ jobs:
           ARTIFACT_OS: ${{ matrix.artifact_os }}
           CGO_ENABLED: "0"
           RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
-        run: |
-          mkdir -p dist
-          suffix=""
-          if [ "$GOOS" = "windows" ]; then suffix=".exe"; fi
-          package="fleetpulse-${RELEASE_VERSION}-${ARTIFACT_OS}-${GOARCH}"
-          mkdir -p "dist/${package}"
-          go build -trimpath -ldflags="-s -w -X main.version=${RELEASE_VERSION} -X main.commit=${GITHUB_SHA}" -o "dist/${package}/fleetpulse${suffix}" ./cmd/fleetpulse
-          cp -R docs "dist/${package}/docs"
-          cp -R packaging "dist/${package}/packaging"
-          cp Dockerfile "dist/${package}/Dockerfile"
-
-          if [ "$GOOS" = "windows" ]; then
-            (cd dist && zip -qr "${package}.zip" "${package}")
-            (cd dist && sha256sum "${package}.zip" > "${package}.zip.sha256")
-          else
-            (cd dist && tar -czf "${package}.tar.gz" "${package}")
-            (cd dist && sha256sum "${package}.tar.gz" > "${package}.tar.gz.sha256")
-          fi
+        run: bash scripts/build-release-artifact.sh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

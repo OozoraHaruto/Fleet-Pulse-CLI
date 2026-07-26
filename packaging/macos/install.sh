@@ -7,9 +7,16 @@ STATE_DIR="${STATE_DIR:-/Library/Application Support/FleetPulse/state}"
 PLIST="/Library/LaunchDaemons/com.fleetpulse.agent.plist"
 START_SERVICE="${START_SERVICE:-true}"
 BINARY_SOURCE="${1:-./fleetpulse}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+PLIST_SOURCE="$SCRIPT_DIR/com.fleetpulse.agent.plist"
 
 if [ ! -f "$BINARY_SOURCE" ]; then
   echo "fleetpulse binary not found at $BINARY_SOURCE" >&2
+  exit 1
+fi
+
+if [ ! -f "$PLIST_SOURCE" ]; then
+  echo "FleetPulse launch daemon plist not found at $PLIST_SOURCE" >&2
   exit 1
 fi
 
@@ -38,7 +45,7 @@ if ! "$PREFIX/bin/fleetpulse" token show -token-file "$STATE_DIR/token" >/dev/nu
 fi
 chmod 0600 "$STATE_DIR/token"
 
-install -m 0644 packaging/macos/com.fleetpulse.agent.plist "$PLIST"
+install -m 0644 "$PLIST_SOURCE" "$PLIST"
 if [ "$START_SERVICE" = "true" ]; then
   launchctl bootout system "$PLIST" >/dev/null 2>&1 || true
   launchctl bootstrap system "$PLIST"

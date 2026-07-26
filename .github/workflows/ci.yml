@@ -81,6 +81,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
       - name: Check shell scripts
         run: |
           bash -n packaging/linux/install.sh
@@ -93,6 +98,9 @@ jobs:
         run: |
           [scriptblock]::Create((Get-Content packaging/windows/install.ps1 -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content packaging/windows/uninstall.ps1 -Raw)) | Out-Null
+
+      - name: Check release artifact layout
+        run: bash tests/release-artifact-layout.sh
 
       - name: Validate Docker build
         run: docker build -t fleetpulse:ci .

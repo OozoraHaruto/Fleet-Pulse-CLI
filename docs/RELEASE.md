@@ -14,7 +14,8 @@ FleetPulse uses semantic versioning.
 Each release should include:
 
 - Native binaries.
-- Packaging scripts and service templates.
+- Platform-specific packaging scripts and service templates at the archive root.
+- Operator documentation, excluding internal `docs/superpowers` planning artifacts.
 - Docker image or image digest.
 - SHA-256 checksum file.
 - Release notes.

@@ -5,38 +5,44 @@ Uninstall preserves config and token state by default so rollback and reinstall 
 ## Linux
 
 ```sh
-sudo packaging/linux/uninstall.sh
+sudo ./uninstall.sh
 ```
 
 To remove preserved config, token, and logs:
 
 ```sh
-sudo PURGE=true packaging/linux/uninstall.sh
+sudo PURGE=true ./uninstall.sh
 ```
+
+From a source checkout, use `packaging/linux/uninstall.sh`.
 
 ## macOS
 
 ```sh
-sudo packaging/macos/uninstall.sh
+sudo ./uninstall.sh
 ```
 
 To purge state:
 
 ```sh
-sudo PURGE=true packaging/macos/uninstall.sh
+sudo PURGE=true ./uninstall.sh
 ```
+
+From a source checkout, use `packaging/macos/uninstall.sh`.
 
 ## Windows
 
 ```powershell
-.\packaging\windows\uninstall.ps1
+.\uninstall.ps1
 ```
 
 To purge state:
 
 ```powershell
-.\packaging\windows\uninstall.ps1 -Purge
+.\uninstall.ps1 -Purge
 ```
+
+From a source checkout, use `.\packaging\windows\uninstall.ps1`.
 
 ## Docker
 

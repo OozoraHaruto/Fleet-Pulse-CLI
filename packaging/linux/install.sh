@@ -9,9 +9,16 @@ SERVICE_USER="${SERVICE_USER:-fleetpulse}"
 SERVICE_GROUP="${SERVICE_GROUP:-fleetpulse}"
 START_SERVICE="${START_SERVICE:-true}"
 BINARY_SOURCE="${1:-./fleetpulse}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+SERVICE_SOURCE="$SCRIPT_DIR/fleetpulse.service"
 
 if [ ! -f "$BINARY_SOURCE" ]; then
   echo "fleetpulse binary not found at $BINARY_SOURCE" >&2
+  exit 1
+fi
+
+if [ ! -f "$SERVICE_SOURCE" ]; then
+  echo "fleetpulse service file not found at $SERVICE_SOURCE" >&2
   exit 1
 fi
 
@@ -46,7 +53,7 @@ fi
 chown "$SERVICE_USER:$SERVICE_GROUP" "$STATE_DIR/token"
 chmod 0600 "$STATE_DIR/token"
 
-install -m 0644 packaging/linux/fleetpulse.service /etc/systemd/system/fleetpulse.service
+install -m 0644 "$SERVICE_SOURCE" /etc/systemd/system/fleetpulse.service
 systemctl daemon-reload
 systemctl enable fleetpulse.service
 if [ "$START_SERVICE" = "true" ]; then
