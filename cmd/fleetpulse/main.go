@@ -19,6 +19,16 @@ var (
 	commit  = "unknown"
 )
 
+const startupBanner = `   ____ __           __   ___         __
+  / __// /___  ___  / /_ / _ \ __ __ / /___ ___
+ / _/ / // -_)/ -_)/ __// ___// // // /(_-</ -_)
+/_/  /_/ \__/ \__/ \__//_/    \_,_//_//___/\__/  %s
+Fleet telemetry agent
+https://github.com/haruto/fleetpulse
+______________________________________/\/\________
+                                      \/  \/
+`
+
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
@@ -72,6 +82,7 @@ func runServe(args []string, stdout io.Writer, stderr io.Writer) int {
 		BearerToken: bearerToken,
 	})
 
+	fmt.Fprintf(stderr, startupBanner, version)
 	fmt.Fprintf(stderr, "fleetpulse listening on %s\n", cfg.Addr)
 	if err := http.ListenAndServe(cfg.Addr, handler); err != nil {
 		fmt.Fprintf(stderr, "server failed: %v\n", err)
