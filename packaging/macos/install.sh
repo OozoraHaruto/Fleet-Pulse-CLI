@@ -10,6 +10,13 @@ BINARY_SOURCE="${1:-./fleetpulse}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 PLIST_SOURCE="$SCRIPT_DIR/com.fleetpulse.agent.plist"
 
+clear_quarantine() {
+  path="$1"
+  if command -v xattr >/dev/null 2>&1; then
+    xattr -d com.apple.quarantine "$path" >/dev/null 2>&1 || true
+  fi
+}
+
 if [ ! -f "$BINARY_SOURCE" ]; then
   echo "fleetpulse binary not found at $BINARY_SOURCE" >&2
   exit 1
@@ -20,9 +27,12 @@ if [ ! -f "$PLIST_SOURCE" ]; then
   exit 1
 fi
 
+clear_quarantine "$BINARY_SOURCE"
+
 install -d -m 0755 "$PREFIX/bin"
 install -d -m 0750 "$CONFIG_DIR" "$STATE_DIR"
 install -m 0755 "$BINARY_SOURCE" "$PREFIX/bin/fleetpulse"
+clear_quarantine "$PREFIX/bin/fleetpulse"
 
 if [ ! -f "$CONFIG_DIR/fleetpulse.json" ]; then
   cat >"$CONFIG_DIR/fleetpulse.json" <<EOF
