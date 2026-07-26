@@ -41,14 +41,19 @@ jobs:
         include:
           - goos: linux
             goarch: amd64
+            artifact_os: linux
           - goos: linux
             goarch: arm64
+            artifact_os: linux
           - goos: windows
             goarch: amd64
+            artifact_os: windows
           - goos: darwin
             goarch: amd64
+            artifact_os: macos
           - goos: darwin
             goarch: arm64
+            artifact_os: macos
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -62,11 +67,12 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          ARTIFACT_OS: ${{ matrix.artifact_os }}
           CGO_ENABLED: "0"
         run: |
           suffix=""
           if [ "$GOOS" = "windows" ]; then suffix=".exe"; fi
-          go build -trimpath -o "dist/fleetpulse-${GOOS}-${GOARCH}${suffix}" ./cmd/fleetpulse
+          go build -trimpath -o "dist/fleetpulse-${ARTIFACT_OS}-${GOARCH}${suffix}" ./cmd/fleetpulse
 
   packaging:
     name: Packaging validation

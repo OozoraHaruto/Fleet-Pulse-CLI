@@ -60,14 +60,19 @@ jobs:
         include:
           - goos: linux
             goarch: amd64
+            artifact_os: linux
           - goos: linux
             goarch: arm64
+            artifact_os: linux
           - goos: windows
             goarch: amd64
+            artifact_os: windows
           - goos: darwin
             goarch: amd64
+            artifact_os: macos
           - goos: darwin
             goarch: arm64
+            artifact_os: macos
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -84,13 +89,14 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          ARTIFACT_OS: ${{ matrix.artifact_os }}
           CGO_ENABLED: "0"
           RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
         run: |
           mkdir -p dist
           suffix=""
           if [ "$GOOS" = "windows" ]; then suffix=".exe"; fi
-          package="fleetpulse-${RELEASE_VERSION}-${GOOS}-${GOARCH}"
+          package="fleetpulse-${RELEASE_VERSION}-${ARTIFACT_OS}-${GOARCH}"
           mkdir -p "dist/${package}"
           go build -trimpath -ldflags="-s -w -X main.version=${RELEASE_VERSION} -X main.commit=${GITHUB_SHA}" -o "dist/${package}/fleetpulse${suffix}" ./cmd/fleetpulse
           cp -R docs "dist/${package}/docs"
@@ -108,7 +114,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: fleetpulse-${{ matrix.goos }}-${{ matrix.goarch }}
+          name: fleetpulse-${{ matrix.artifact_os }}-${{ matrix.goarch }}
           path: |
             dist/*.tar.gz
             dist/*.zip
