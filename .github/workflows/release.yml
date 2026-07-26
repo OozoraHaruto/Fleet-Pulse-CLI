@@ -134,7 +134,7 @@ jobs:
           RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
         run: |
           image="ghcr.io/${GITHUB_REPOSITORY,,}:${RELEASE_VERSION}"
-          docker build -t "$image" .
+          docker build --build-arg VERSION="$RELEASE_VERSION" --build-arg COMMIT="$GITHUB_SHA" -t "$image" .
 
       - name: Push Docker image
         env:

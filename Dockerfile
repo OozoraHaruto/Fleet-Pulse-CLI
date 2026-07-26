@@ -1,9 +1,11 @@
 FROM golang:1.26-alpine AS build
 WORKDIR /src
+ARG VERSION=dev
+ARG COMMIT=unknown
 COPY go.mod ./
 COPY cmd ./cmd
 COPY internal ./internal
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/fleetpulse ./cmd/fleetpulse
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" -o /out/fleetpulse ./cmd/fleetpulse
 
 FROM alpine:3.22
 RUN addgroup -S fleetpulse && adduser -S -G fleetpulse fleetpulse
