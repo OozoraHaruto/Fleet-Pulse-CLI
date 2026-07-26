@@ -12,6 +12,12 @@ curl -fsSL https://raw.githubusercontent.com/OozoraHaruto/Fleet-Pulse-CLI/main/i
 
 The bootstrap installer detects the local OS and architecture, downloads the matching release archive and `.sha256` file from GitHub Releases, verifies the checksum, unpacks the archive, and runs the bundled platform installer. It uses `sudo` automatically when the current user is not root.
 
+GitHub's latest release API returns only stable releases. To test an early prerelease before publishing a stable release, opt in explicitly:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/OozoraHaruto/Fleet-Pulse-CLI/main/install.sh | FLEETPULSE_ALLOW_PRERELEASE=true sh
+```
+
 Set `FLEETPULSE_VERSION` to install a specific release tag:
 
 ```sh
@@ -19,6 +25,8 @@ curl -fsSL https://raw.githubusercontent.com/OozoraHaruto/Fleet-Pulse-CLI/main/i
 ```
 
 Set `START_SERVICE=false` to install without starting the service.
+
+If the shell reports `getcwd: cannot access parent directories`, change to a readable directory such as `$HOME` and rerun the command.
 
 ## Linux
 

@@ -113,7 +113,9 @@ jobs:
         run: bash tests/macos-install-clears-quarantine.sh
 
       - name: Check GitHub latest installer
-        run: bash tests/github-install-latest.sh
+        run: |
+          bash tests/github-install-latest.sh
+          bash tests/github-install-prerelease.sh
 
       - name: Validate Docker build
         run: docker build -t fleetpulse:ci .

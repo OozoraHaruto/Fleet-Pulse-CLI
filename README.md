@@ -144,6 +144,12 @@ To pin a version:
 curl -fsSL https://raw.githubusercontent.com/OozoraHaruto/Fleet-Pulse-CLI/main/install.sh | FLEETPULSE_VERSION=v1.2.3 sh
 ```
 
+To test the newest prerelease before a stable release exists:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/OozoraHaruto/Fleet-Pulse-CLI/main/install.sh | FLEETPULSE_ALLOW_PRERELEASE=true sh
+```
+
 FleetPulse includes lifecycle artifacts for each supported target:
 
 - Linux: [packaging/linux](packaging/linux)

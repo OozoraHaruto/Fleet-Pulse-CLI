@@ -4,6 +4,7 @@ set -eu
 REPO="${FLEETPULSE_REPO:-OozoraHaruto/Fleet-Pulse-CLI}"
 VERSION="${FLEETPULSE_VERSION:-latest}"
 USE_SUDO="${FLEETPULSE_USE_SUDO:-auto}"
+ALLOW_PRERELEASE="${FLEETPULSE_ALLOW_PRERELEASE:-false}"
 
 fail() {
   echo "fleetpulse install: $*" >&2
@@ -87,12 +88,33 @@ resolve_version() {
     return
   fi
 
-  latest_json="$(github_api_get "https://api.github.com/repos/$REPO/releases/latest")" ||
-    fail "could not fetch latest release metadata from GitHub"
-  latest_version="$(printf '%s\n' "$latest_json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
+  if latest_json="$(github_api_get "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null)"; then
+    latest_version="$(printf '%s\n' "$latest_json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
+
+    if [ -z "$latest_version" ]; then
+      fail "could not find tag_name in latest GitHub release metadata"
+    fi
+
+    printf '%s\n' "$latest_version"
+    return
+  fi
+
+  case "$ALLOW_PRERELEASE" in
+    true | yes | 1) ;;
+    false | no | 0)
+      fail "could not fetch latest stable release metadata from GitHub. If only prereleases exist, set FLEETPULSE_ALLOW_PRERELEASE=true."
+      ;;
+    *)
+      fail "FLEETPULSE_ALLOW_PRERELEASE must be true or false"
+      ;;
+  esac
+
+  releases_json="$(github_api_get "https://api.github.com/repos/$REPO/releases")" ||
+    fail "could not fetch release metadata from GitHub"
+  latest_version="$(printf '%s\n' "$releases_json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
 
   if [ -z "$latest_version" ]; then
-    fail "could not find tag_name in latest GitHub release metadata"
+    fail "could not find any GitHub releases"
   fi
 
   printf '%s\n' "$latest_version"
@@ -173,9 +195,9 @@ trap 'rm -rf "$tmp_dir"' EXIT
 echo "Installing FleetPulse $release_version for $artifact_os/$artifact_arch from $REPO..."
 
 github_download "$archive_url" "$tmp_dir/$archive_name" ||
-  fail "could not download release archive: $archive_url"
+  fail "could not download release archive: $archive_url. Make sure the release workflow uploaded assets for $release_version."
 github_download "$checksum_url" "$tmp_dir/$archive_name.sha256" ||
-  fail "could not download checksum: $checksum_url"
+  fail "could not download checksum: $checksum_url. Make sure the release workflow uploaded assets for $release_version."
 
 verify_checksum "$tmp_dir" "$archive_name.sha256" ||
   fail "checksum verification failed for $archive_name"
