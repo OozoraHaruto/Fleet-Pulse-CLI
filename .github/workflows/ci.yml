@@ -94,6 +94,7 @@ jobs:
 
       - name: Check shell scripts
         run: |
+          bash -n install.sh
           bash -n packaging/linux/install.sh
           bash -n packaging/linux/uninstall.sh
           bash -n packaging/macos/install.sh
@@ -107,6 +108,9 @@ jobs:
 
       - name: Check release artifact layout
         run: bash tests/release-artifact-layout.sh
+
+      - name: Check GitHub latest installer
+        run: bash tests/github-install-latest.sh
 
       - name: Validate Docker build
         run: docker build -t fleetpulse:ci .
