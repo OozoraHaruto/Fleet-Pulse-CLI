@@ -5,10 +5,13 @@ package collector
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -22,7 +25,29 @@ var (
 	darwinVMStatLinePattern     = regexp.MustCompile(`^"?([^":]+)"?:\s+(\d+)\.$`)
 	darwinBootTimePattern       = regexp.MustCompile(`sec\s*=\s*(\d+)`)
 	darwinLoadAveragePattern    = regexp.MustCompile(`load averages?:\s*([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)`)
+	darwinGPUUtilizationPattern = regexp.MustCompile(`(?i)GPU(?:\s+HW)?\s+active\s+residency:\s*([0-9.]+)%`)
+	darwinGPUTemperaturePattern = regexp.MustCompile(`(?i)GPU\s+(?:die\s+)?temperature:\s*([0-9.]+)\s*C`)
 )
+
+func collectCPU(ctx context.Context) schema.CPUSection {
+	coreCount := runtime.NumCPU()
+	out, err := darwinCommand(ctx, "/usr/sbin/iostat", "-c", "2", "-w", "1")
+	if err != nil {
+		return schema.CPUSection{
+			SectionStatus: schema.SectionStatus{Status: schema.StatusAvailable, Scope: schema.ScopeHost},
+			CoreCount:     coreCount,
+		}
+	}
+
+	section, err := darwinCPUFromIOStat(out, coreCount)
+	if err != nil {
+		return schema.CPUSection{
+			SectionStatus: schema.SectionStatus{Status: schema.StatusAvailable, Scope: schema.ScopeHost},
+			CoreCount:     coreCount,
+		}
+	}
+	return section
+}
 
 func collectMemory(ctx context.Context) schema.MemorySection {
 	out, err := darwinCommand(ctx, "/usr/bin/vm_stat")
@@ -41,7 +66,7 @@ func collectMemory(ctx context.Context) schema.MemorySection {
 	return section
 }
 
-func collectDisks(context.Context) schema.DisksSection {
+func collectDisks(ctx context.Context) schema.DisksSection {
 	n, err := syscall.Getfsstat(nil, 0)
 	if err != nil {
 		return schema.DisksSection{
@@ -69,6 +94,7 @@ func collectDisks(context.Context) schema.DisksSection {
 	for _, stat := range stats[:n] {
 		volume, ok := darwinVolumeFromStatfs(stat)
 		if ok {
+			volume.Health = darwinDiskHealth(ctx, volume.MountPoint, volume.FilesystemType)
 			volumes = append(volumes, volume)
 		}
 	}
@@ -84,7 +110,22 @@ func collectDisks(context.Context) schema.DisksSection {
 	}
 }
 
-func collectGPU(context.Context) schema.GPUSection {
+func collectGPU(ctx context.Context) schema.GPUSection {
+	if out, err := darwinCommand(ctx, "/usr/sbin/system_profiler", "SPDisplaysDataType", "-json"); err == nil {
+		if section, parseErr := darwinGPUFromSystemProfiler(out); parseErr == nil && len(section.Devices) > 0 {
+			if os.Geteuid() == 0 {
+				powerCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+				defer cancel()
+				if powerOut, powerErr := darwinCommand(powerCtx, "/usr/bin/powermetrics", "--samplers", "gpu_power", "-n", "1", "-i", "1000"); powerErr == nil {
+					for i := range section.Devices {
+						darwinApplyPowermetricsGPU(&section.Devices[i], powerOut)
+					}
+				}
+			}
+			return section
+		}
+	}
+
 	cpuBrand, _ := darwinSysctlString("machdep.cpu.brand_string")
 	hardwareModel, _ := darwinSysctlString("hw.model")
 	return darwinGPUFromHardwareIdentity(cpuBrand, hardwareModel)
@@ -122,6 +163,49 @@ func collectSystem(ctx context.Context, now time.Time) schema.SystemSection {
 func darwinCommand(ctx context.Context, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	return cmd.Output()
+}
+
+func darwinCPUFromIOStat(out []byte, coreCount int) (schema.CPUSection, error) {
+	lines := strings.Split(string(out), "\n")
+	var utilization *float64
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) < 6 {
+			continue
+		}
+		values := make([]float64, len(fields))
+		numeric := true
+		for i, field := range fields {
+			value, err := strconv.ParseFloat(field, 64)
+			if err != nil {
+				numeric = false
+				break
+			}
+			values[i] = value
+		}
+		if !numeric {
+			continue
+		}
+
+		idle := values[len(values)-4]
+		used := 100 - idle
+		if used < 0 {
+			used = 0
+		}
+		if used > 100 {
+			used = 100
+		}
+		utilization = &used
+	}
+	if utilization == nil {
+		return schema.CPUSection{}, errors.New("cpu columns missing from iostat output")
+	}
+
+	return schema.CPUSection{
+		SectionStatus: schema.SectionStatus{Status: schema.StatusAvailable, Scope: schema.ScopeHost},
+		CoreCount:     coreCount,
+		Utilization:   utilization,
+	}, nil
 }
 
 func darwinMemoryFromVMStat(out []byte, physicalMemoryBytes uint64) (schema.MemorySection, error) {
@@ -287,6 +371,38 @@ func darwinVolumeFromStatfs(stat syscall.Statfs_t) (schema.Volume, bool) {
 	}, true
 }
 
+func darwinDiskHealth(ctx context.Context, mountPoint string, fsType string) *schema.DiskHealth {
+	if fsType == "smbfs" {
+		return &schema.DiskHealth{Status: "unsupported"}
+	}
+	out, err := darwinCommand(ctx, "/usr/sbin/diskutil", "info", mountPoint)
+	if err != nil {
+		return &schema.DiskHealth{Status: "unavailable", Warnings: []string{err.Error()}}
+	}
+	health, ok := darwinDiskHealthFromDiskutil(out)
+	if !ok {
+		return &schema.DiskHealth{Status: "unsupported"}
+	}
+	return &health
+}
+
+func darwinDiskHealthFromDiskutil(out []byte) (schema.DiskHealth, bool) {
+	fields := darwinColonFields(string(out))
+	smart := fields["SMART Status"]
+	if smart == "" {
+		return schema.DiskHealth{}, false
+	}
+
+	switch strings.ToLower(smart) {
+	case "verified":
+		return schema.DiskHealth{Status: "available"}, true
+	case "not supported", "unsupported":
+		return schema.DiskHealth{Status: "unsupported"}, true
+	default:
+		return schema.DiskHealth{Status: "available", Warnings: []string{"SMART Status: " + smart}}, true
+	}
+}
+
 func darwinSkipVolume(mountPoint string, fsType string, source string) bool {
 	if mountPoint == "" || fsType == "" {
 		return true
@@ -318,6 +434,123 @@ func int8ArrayToString(values []int8) string {
 		buf = append(buf, byte(value))
 	}
 	return string(buf)
+}
+
+func darwinGPUFromSystemProfiler(out []byte) (schema.GPUSection, error) {
+	var payload struct {
+		Displays []map[string]any `json:"SPDisplaysDataType"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		return schema.GPUSection{}, err
+	}
+	if len(payload.Displays) == 0 {
+		return schema.GPUSection{}, errors.New("display devices missing from system_profiler output")
+	}
+
+	devices := make([]schema.GPUDevice, 0, len(payload.Displays))
+	for _, display := range payload.Displays {
+		model := firstString(display, "_name", "sppci_model", "spdisplays_name")
+		vendor := darwinNormalizeGPUVendor(firstString(display, "spdisplays_vendor", "sppci_vendor"))
+		if model == "" {
+			continue
+		}
+		if vendor == "" && strings.HasPrefix(model, "Apple ") {
+			vendor = "Apple"
+		}
+		if vendor == "Apple" && !strings.HasSuffix(model, " GPU") {
+			model += " GPU"
+		}
+
+		device := schema.GPUDevice{
+			Vendor: vendor,
+			Model:  model,
+		}
+		if memory, ok := darwinParseByteSize(firstString(display, "spdisplays_vram", "sppci_vram")); ok {
+			device.MemoryTotalBytes = &memory
+		}
+		devices = append(devices, device)
+	}
+	if len(devices) == 0 {
+		return schema.GPUSection{}, errors.New("usable display devices missing from system_profiler output")
+	}
+
+	return schema.GPUSection{
+		SectionStatus: schema.SectionStatus{Status: schema.StatusAvailable, Scope: schema.ScopeHost},
+		Devices:       devices,
+	}, nil
+}
+
+func darwinApplyPowermetricsGPU(device *schema.GPUDevice, out []byte) {
+	if matches := darwinGPUUtilizationPattern.FindStringSubmatch(string(out)); len(matches) == 2 {
+		if value, err := strconv.ParseFloat(matches[1], 64); err == nil {
+			device.Utilization = &value
+		}
+	}
+	if matches := darwinGPUTemperaturePattern.FindStringSubmatch(string(out)); len(matches) == 2 {
+		if value, err := strconv.ParseFloat(matches[1], 64); err == nil {
+			device.TemperatureCelsius = &value
+		}
+	}
+}
+
+func firstString(values map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := values[key].(string); ok {
+			value = strings.TrimSpace(value)
+			if value != "" {
+				return value
+			}
+		}
+	}
+	return ""
+}
+
+func darwinNormalizeGPUVendor(value string) string {
+	value = strings.TrimSpace(value)
+	value = strings.TrimPrefix(value, "sppci_vendor_")
+	value = strings.TrimPrefix(value, "spdisplays_vendor_")
+	if strings.EqualFold(value, "apple") {
+		return "Apple"
+	}
+	return value
+}
+
+func darwinParseByteSize(value string) (uint64, bool) {
+	fields := strings.Fields(strings.TrimSpace(value))
+	if len(fields) < 2 {
+		return 0, false
+	}
+	number, err := strconv.ParseFloat(fields[0], 64)
+	if err != nil {
+		return 0, false
+	}
+
+	multiplier := float64(1)
+	switch strings.ToLower(fields[1]) {
+	case "kb", "kib":
+		multiplier = 1024
+	case "mb", "mib":
+		multiplier = 1024 * 1024
+	case "gb", "gib":
+		multiplier = 1024 * 1024 * 1024
+	case "tb", "tib":
+		multiplier = 1024 * 1024 * 1024 * 1024
+	default:
+		return 0, false
+	}
+	return uint64(number * multiplier), true
+}
+
+func darwinColonFields(text string) map[string]string {
+	fields := map[string]string{}
+	for _, line := range strings.Split(text, "\n") {
+		key, value, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		fields[strings.TrimSpace(key)] = strings.TrimSpace(value)
+	}
+	return fields
 }
 
 func darwinGPUFromHardwareIdentity(cpuBrand string, hardwareModel string) schema.GPUSection {

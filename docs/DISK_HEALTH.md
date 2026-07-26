@@ -2,7 +2,7 @@
 
 Disk health data is platform and permission dependent.
 
-The v1 schema includes a `health` object per volume with status, optional temperature, and warning strings. In the current implementation, disk health is represented as unsupported until platform-specific collectors are added.
+The v1 schema includes a `health` object per volume with status, optional temperature, and warning strings. On macOS, FleetPulse uses the built-in `diskutil info` output when available. Other platforms and unsupported device types keep explicit unsupported or unavailable health status.
 
 Operators should expect:
 

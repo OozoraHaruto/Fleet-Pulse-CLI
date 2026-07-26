@@ -4,10 +4,18 @@ package collector
 
 import (
 	"context"
+	"runtime"
 	"time"
 
 	"github.com/haruto/fleetpulse/internal/schema"
 )
+
+func collectCPU(context.Context) schema.CPUSection {
+	return schema.CPUSection{
+		SectionStatus: schema.SectionStatus{Status: schema.StatusAvailable, Scope: schema.ScopeHost},
+		CoreCount:     runtime.NumCPU(),
+	}
+}
 
 func collectMemory(context.Context) schema.MemorySection {
 	return schema.MemorySection{

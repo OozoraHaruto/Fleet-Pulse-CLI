@@ -9,6 +9,32 @@ import (
 	"github.com/haruto/fleetpulse/internal/schema"
 )
 
+func TestDarwinParseIOStatCPUUsesLastSample(t *testing.T) {
+	out := `          disk0               cpu    load average
+    KB/t  tps  MB/s     us sy id   1m   5m   15m
+   31.32   14  0.42      5  3 92  3.4  4.5   6.7
+   12.00    1  0.01     11  7 82  3.1  4.0   5.9
+`
+
+	section, err := darwinCPUFromIOStat([]byte(out), 8)
+
+	if err != nil {
+		t.Fatalf("darwinCPUFromIOStat returned error: %v", err)
+	}
+	if section.Status != schema.StatusAvailable {
+		t.Fatalf("Status = %q, want %q", section.Status, schema.StatusAvailable)
+	}
+	if section.Scope != schema.ScopeHost {
+		t.Fatalf("Scope = %q, want %q", section.Scope, schema.ScopeHost)
+	}
+	if section.CoreCount != 8 {
+		t.Fatalf("CoreCount = %d, want 8", section.CoreCount)
+	}
+	if section.Utilization == nil || *section.Utilization != 18 {
+		t.Fatalf("Utilization = %v, want 18", section.Utilization)
+	}
+}
+
 func TestDarwinMemoryFromVMStatReturnsHostMemory(t *testing.T) {
 	vmStat := `Mach Virtual Memory Statistics: (page size of 16384 bytes)
 Pages free:                                     100.
@@ -83,6 +109,56 @@ func TestDarwinGPUFromHardwareIdentityReturnsAppleSiliconDevice(t *testing.T) {
 	}
 }
 
+func TestDarwinGPUFromSystemProfilerReturnsDisplayDetails(t *testing.T) {
+	out := []byte(`{
+	  "SPDisplaysDataType": [
+	    {
+	      "_name": "Apple M2",
+	      "sppci_vendor": "Apple",
+	      "spdisplays_vram": "10 GB"
+	    }
+	  ]
+	}`)
+
+	section, err := darwinGPUFromSystemProfiler(out)
+
+	if err != nil {
+		t.Fatalf("darwinGPUFromSystemProfiler returned error: %v", err)
+	}
+	if section.Status != schema.StatusAvailable {
+		t.Fatalf("Status = %q, want %q", section.Status, schema.StatusAvailable)
+	}
+	if len(section.Devices) != 1 {
+		t.Fatalf("device count = %d, want 1", len(section.Devices))
+	}
+	device := section.Devices[0]
+	if device.Vendor != "Apple" {
+		t.Fatalf("Vendor = %q, want Apple", device.Vendor)
+	}
+	if device.Model != "Apple M2 GPU" {
+		t.Fatalf("Model = %q, want Apple M2 GPU", device.Model)
+	}
+	if got := value(t, device.MemoryTotalBytes); got != 10*1024*1024*1024 {
+		t.Fatalf("MemoryTotalBytes = %d, want %d", got, uint64(10*1024*1024*1024))
+	}
+}
+
+func TestDarwinApplyPowermetricsGPUFillsUtilizationAndTemperature(t *testing.T) {
+	device := schema.GPUDevice{Vendor: "Apple", Model: "Apple M2 GPU"}
+	out := []byte(`GPU HW active residency: 12.34%
+GPU die temperature: 51.2 C
+`)
+
+	darwinApplyPowermetricsGPU(&device, out)
+
+	if device.Utilization == nil || *device.Utilization != 12.34 {
+		t.Fatalf("Utilization = %v, want 12.34", device.Utilization)
+	}
+	if device.TemperatureCelsius == nil || *device.TemperatureCelsius != 51.2 {
+		t.Fatalf("TemperatureCelsius = %v, want 51.2", device.TemperatureCelsius)
+	}
+}
+
 func TestDarwinGPUFromHardwareIdentityAvoidsUnknownDetails(t *testing.T) {
 	section := darwinGPUFromHardwareIdentity("Intel(R) Core(TM) i7", "MacBookPro15,1")
 
@@ -91,6 +167,25 @@ func TestDarwinGPUFromHardwareIdentityAvoidsUnknownDetails(t *testing.T) {
 	}
 	if len(section.Devices) != 0 {
 		t.Fatalf("device count = %d, want 0", len(section.Devices))
+	}
+}
+
+func TestDarwinParseDiskutilInfoReturnsHealth(t *testing.T) {
+	out := []byte(`   Device Identifier:         disk3s1
+   SMART Status:              Verified
+   Solid State:               Yes
+`)
+
+	health, ok := darwinDiskHealthFromDiskutil(out)
+
+	if !ok {
+		t.Fatal("darwinDiskHealthFromDiskutil returned ok=false")
+	}
+	if health.Status != "available" {
+		t.Fatalf("Status = %q, want available", health.Status)
+	}
+	if len(health.Warnings) != 0 {
+		t.Fatalf("Warnings = %v, want none", health.Warnings)
 	}
 }
 

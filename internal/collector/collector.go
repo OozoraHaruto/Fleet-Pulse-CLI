@@ -104,14 +104,8 @@ func (s *Service) Health(context.Context) schema.Health {
 	}
 }
 
-func (s *Service) CPU(context.Context) schema.CPUSection {
-	return schema.CPUSection{
-		SectionStatus: schema.SectionStatus{
-			Status: schema.StatusAvailable,
-			Scope:  schema.ScopeHost,
-		},
-		CoreCount: runtime.NumCPU(),
-	}
+func (s *Service) CPU(ctx context.Context) schema.CPUSection {
+	return collectCPU(ctx)
 }
 
 func (s *Service) Memory(ctx context.Context) schema.MemorySection {
