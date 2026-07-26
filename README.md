@@ -18,7 +18,7 @@ The project currently includes the core agent, API contract, authentication/conf
 
 ## Current Collector Status
 
-FleetPulse already returns a stable API shape. On macOS, the collector reports host identity, platform, architecture, CPU core count, memory totals, mounted volume capacity, GPU identity, uptime, and load averages. Other platforms keep explicit unsupported/unavailable sections for metrics that still need platform-specific collectors.
+FleetPulse already returns a stable API shape. On macOS, the collector reports host identity, platform, architecture, CPU core count, memory totals, mounted volume capacity, GPU identity, uptime, and load averages. On Linux, including arm64 Raspberry Pi deployments, it reports host identity, platform, architecture, CPU core count, memory totals, mounted volume capacity, uptime, and load averages. Other platforms keep explicit unsupported/unavailable sections for metrics that still need platform-specific collectors.
 
 That means clients can integrate against the v1 schema now without treating missing hardware or unsupported metrics as API failures.
 
@@ -93,6 +93,8 @@ Metric sections include:
 - `status`: `available`, `unsupported`, or `unavailable`
 - `scope`: `host`, `container`, or `unavailable`
 - `error`: optional reason for unavailable data
+
+On Linux, GPU discovery is cached at `/var/lib/fleetpulse/gpu-discovery.json` so FleetPulse can reuse the detected Raspberry Pi, NVIDIA, AMD, Intel, or DRM/sysfs path instead of probing every request. Delete that file to force GPU rediscovery.
 
 See [docs/API_REFERENCE.md](docs/API_REFERENCE.md) for details.
 

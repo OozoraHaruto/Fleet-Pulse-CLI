@@ -29,3 +29,9 @@ Each metric section includes:
 - `error`: optional reason for unavailable data.
 
 Zero values remain distinct from unavailable values because nullable numeric fields are encoded as JSON `null` when not known.
+
+## Linux GPU Discovery
+
+Linux GPU detection tries Raspberry Pi/VideoCore, NVIDIA, AMD, Intel, and generic DRM/sysfs paths. Discovery is cached in `/var/lib/fleetpulse/gpu-discovery.json`; remove that file to force rediscovery.
+
+GPU metric coverage depends on the detected vendor, installed tools, drivers, and permissions. `unsupported` means no detector matched. `unavailable` means a detector exists but runtime data could not be read.

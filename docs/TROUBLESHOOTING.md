@@ -24,6 +24,8 @@ Retrieve the token with `fleetpulse token show` from an admin shell.
 
 Unsupported means FleetPulse does not have a collector for that platform or device yet. Unavailable means the collector could not read the value at runtime, often because of permissions or container isolation.
 
+On Linux, GPU discovery is cached at `/var/lib/fleetpulse/gpu-discovery.json`. Delete that file and restart or query FleetPulse again to force rediscovery after changing GPUs, drivers, or permissions.
+
 ## Docker Replacement Lost Auth
 
 Ensure `/var/lib/fleetpulse` is backed by a persistent volume. Removing the volume intentionally deletes token state.
