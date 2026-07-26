@@ -1,6 +1,17 @@
 name: Release
 
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example v1.2.3"
+        required: true
+        type: string
+      prerelease:
+        description: "Mark the GitHub release as a prerelease"
+        required: true
+        default: false
+        type: boolean
   push:
     tags:
       - "v*.*.*"
@@ -10,9 +21,39 @@ permissions:
   packages: write
 
 jobs:
+  metadata:
+    name: Release metadata
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      prerelease: ${{ steps.release.outputs.prerelease }}
+    steps:
+      - name: Resolve release version
+        id: release
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ inputs.version }}"
+            prerelease="${{ inputs.prerelease }}"
+          else
+            version="${GITHUB_REF_NAME}"
+            prerelease="false"
+          fi
+
+          case "$version" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *)
+              echo "version must look like v1.2.3" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+
   release:
     name: Build release artifacts
     runs-on: ubuntu-latest
+    needs: metadata
     strategy:
       fail-fast: false
       matrix:
@@ -44,23 +85,39 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
+          RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
         run: |
           mkdir -p dist
           suffix=""
           if [ "$GOOS" = "windows" ]; then suffix=".exe"; fi
-          name="fleetpulse-${GITHUB_REF_NAME}-${GOOS}-${GOARCH}${suffix}"
-          go build -trimpath -ldflags="-s -w -X main.version=${GITHUB_REF_NAME} -X main.commit=${GITHUB_SHA}" -o "dist/${name}" ./cmd/fleetpulse
-          (cd dist && sha256sum "${name}" > "${name}.sha256")
+          package="fleetpulse-${RELEASE_VERSION}-${GOOS}-${GOARCH}"
+          mkdir -p "dist/${package}"
+          go build -trimpath -ldflags="-s -w -X main.version=${RELEASE_VERSION} -X main.commit=${GITHUB_SHA}" -o "dist/${package}/fleetpulse${suffix}" ./cmd/fleetpulse
+          cp -R docs "dist/${package}/docs"
+          cp -R packaging "dist/${package}/packaging"
+          cp Dockerfile "dist/${package}/Dockerfile"
+
+          if [ "$GOOS" = "windows" ]; then
+            (cd dist && zip -qr "${package}.zip" "${package}")
+            (cd dist && sha256sum "${package}.zip" > "${package}.zip.sha256")
+          else
+            (cd dist && tar -czf "${package}.tar.gz" "${package}")
+            (cd dist && sha256sum "${package}.tar.gz" > "${package}.tar.gz.sha256")
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: fleetpulse-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: dist/*
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.sha256
 
   docker:
     name: Build and publish Docker image
     runs-on: ubuntu-latest
+    needs: metadata
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -73,15 +130,24 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Docker image
-        run: docker build -t ghcr.io/${{ github.repository }}:${{ github.ref_name }} .
+        env:
+          RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:${RELEASE_VERSION}"
+          docker build -t "$image" .
 
       - name: Push Docker image
-        run: docker push ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+        env:
+          RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:${RELEASE_VERSION}"
+          docker push "$image"
 
   publish:
     name: Publish GitHub release
     runs-on: ubuntu-latest
     needs:
+      - metadata
       - release
       - docker
     steps:
@@ -94,5 +160,9 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.metadata.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: FleetPulse ${{ needs.metadata.outputs.version }}
           files: dist/*
           generate_release_notes: true
+          prerelease: ${{ needs.metadata.outputs.prerelease }}

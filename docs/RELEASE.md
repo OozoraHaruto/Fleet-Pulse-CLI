@@ -20,6 +20,12 @@ Each release should include:
 - Release notes.
 - Git tag, commit SHA, CI run, and schema version traceability.
 
+## Release Automation
+
+The `Release` GitHub Actions workflow can be started manually with `workflow_dispatch` by entering a version such as `v1.2.3`. It also runs automatically when a matching semver tag like `v1.2.3` is pushed.
+
+Normal pushes and pull requests run CI only. They do not publish releases.
+
 ## Compatibility
 
 Breaking API changes require a new major version. Minor and patch releases within a major line must preserve documented v1 behavior.
