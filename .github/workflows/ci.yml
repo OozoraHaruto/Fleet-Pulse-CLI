@@ -126,5 +126,10 @@ jobs:
           bash tests/github-install-latest.sh
           bash tests/github-install-prerelease.sh
 
+      - name: Check Docker release variants
+        run: bash tests/docker-release-variants.sh
+
       - name: Validate Docker build
-        run: docker build -t fleetpulse:ci .
+        run: |
+          docker build --target runtime -t fleetpulse:ci .
+          docker build --target cuda -t fleetpulse:ci-cuda .
