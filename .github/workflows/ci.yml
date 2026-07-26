@@ -76,11 +76,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: fleetpulse-${{ matrix.artifact_os }}-${{ matrix.goarch }}
-          path: |
-            dist/*.tar.gz
-            dist/*.zip
-            dist/*.sha256
+          name: fleetpulse-ci-${{ github.run_number }}-${{ matrix.artifact_os }}-${{ matrix.goarch }}
+          path: dist/fleetpulse-ci-${{ github.run_number }}-${{ matrix.artifact_os }}-${{ matrix.goarch }}/**
           retention-days: 14
 
   packaging:
