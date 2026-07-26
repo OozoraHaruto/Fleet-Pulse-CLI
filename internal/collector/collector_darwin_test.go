@@ -143,6 +143,56 @@ func TestDarwinGPUFromSystemProfilerReturnsDisplayDetails(t *testing.T) {
 	}
 }
 
+func TestDarwinApplyUnifiedMemoryTotalFillsAppleSiliconGPU(t *testing.T) {
+	device := schema.GPUDevice{Vendor: "Apple", Model: "Apple M2 GPU"}
+
+	darwinApplyUnifiedMemoryTotal(&device, 16*1024*1024*1024)
+
+	if got := value(t, device.MemoryTotalBytes); got != 16*1024*1024*1024 {
+		t.Fatalf("MemoryTotalBytes = %d, want %d", got, uint64(16*1024*1024*1024))
+	}
+}
+
+func TestDarwinUnifiedMemoryBytesFromVMStatUsesDerivedMemoryTotal(t *testing.T) {
+	vmStat := []byte(`Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                     100.
+Pages active:                                   200.
+Pages inactive:                                 300.
+Pages speculative:                               50.
+Pages wired down:                               400.
+Pages purgeable:                                 25.
+Pages occupied by compressor:                    75.
+`)
+
+	total, ok := darwinUnifiedMemoryBytesFromVMStat(vmStat)
+
+	if !ok {
+		t.Fatal("darwinUnifiedMemoryBytesFromVMStat returned ok=false")
+	}
+	if total != 18_432_000 {
+		t.Fatalf("total = %d, want %d", total, uint64(18_432_000))
+	}
+}
+
+func TestDarwinApplyIORegistryGPUFillsMemoryUsedAndUtilization(t *testing.T) {
+	device := schema.GPUDevice{Vendor: "Apple", Model: "Apple M2 GPU"}
+	out := []byte(`+-o AGXAcceleratorG14G  <class AGXAcceleratorG14G, id 0x1000003e6, registered, matched, active, busy 0 (1522 ms), retain 62>
+  | {
+  |   "PerformanceStatistics" = {"In use system memory (driver)"=0,"Alloc system memory"=3455598592,"Tiler Utilization %"=0,"recoveryCount"=0,"lastRecoveryTime"=0,"Renderer Utilization %"=0,"TiledSceneBytes"=557056,"Device Utilization %"=4,"SplitSceneCount"=0,"Allocated PB Size"=73400320,"In use system memory"=632307712}
+  |   "model" = "Apple M2"
+  | }
+`)
+
+	darwinApplyIORegistryGPU(&device, out)
+
+	if got := value(t, device.MemoryUsedBytes); got != 632307712 {
+		t.Fatalf("MemoryUsedBytes = %d, want %d", got, uint64(632307712))
+	}
+	if device.Utilization == nil || *device.Utilization != 4 {
+		t.Fatalf("Utilization = %v, want 4", device.Utilization)
+	}
+}
+
 func TestDarwinApplyPowermetricsGPUFillsUtilizationAndTemperature(t *testing.T) {
 	device := schema.GPUDevice{Vendor: "Apple", Model: "Apple M2 GPU"}
 	out := []byte(`GPU HW active residency: 12.34%
