@@ -27,6 +27,8 @@ var (
 	darwinLoadAveragePattern    = regexp.MustCompile(`load averages?:\s*([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)`)
 	darwinGPUUtilizationPattern = regexp.MustCompile(`(?i)GPU(?:\s+HW)?\s+active\s+residency:\s*([0-9.]+)%`)
 	darwinGPUTemperaturePattern = regexp.MustCompile(`(?i)GPU\s+(?:die\s+)?temperature:\s*([0-9.]+)\s*C`)
+	darwinIORegistryGPUStats    = regexp.MustCompile(`"PerformanceStatistics"\s*=\s*\{([^}]*)\}`)
+	darwinIORegistryNumber      = regexp.MustCompile(`"([^"]+)"\s*=\s*([0-9]+(?:\.[0-9]+)?)`)
 )
 
 func collectCPU(ctx context.Context) schema.CPUSection {
@@ -113,6 +115,7 @@ func collectDisks(ctx context.Context) schema.DisksSection {
 func collectGPU(ctx context.Context) schema.GPUSection {
 	if out, err := darwinCommand(ctx, "/usr/sbin/system_profiler", "SPDisplaysDataType", "-json"); err == nil {
 		if section, parseErr := darwinGPUFromSystemProfiler(out); parseErr == nil && len(section.Devices) > 0 {
+			darwinApplyHostGPUMetrics(ctx, &section)
 			if os.Geteuid() == 0 {
 				powerCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 				defer cancel()
@@ -128,7 +131,9 @@ func collectGPU(ctx context.Context) schema.GPUSection {
 
 	cpuBrand, _ := darwinSysctlString("machdep.cpu.brand_string")
 	hardwareModel, _ := darwinSysctlString("hw.model")
-	return darwinGPUFromHardwareIdentity(cpuBrand, hardwareModel)
+	section := darwinGPUFromHardwareIdentity(cpuBrand, hardwareModel)
+	darwinApplyHostGPUMetrics(ctx, &section)
+	return section
 }
 
 func collectSystem(ctx context.Context, now time.Time) schema.SystemSection {
@@ -491,6 +496,93 @@ func darwinApplyPowermetricsGPU(device *schema.GPUDevice, out []byte) {
 			device.TemperatureCelsius = &value
 		}
 	}
+}
+
+func darwinApplyHostGPUMetrics(ctx context.Context, section *schema.GPUSection) {
+	unifiedMemory := darwinUnifiedMemoryBytes(ctx)
+	for i := range section.Devices {
+		darwinApplyUnifiedMemoryTotal(&section.Devices[i], unifiedMemory)
+	}
+
+	out, err := darwinCommand(ctx, "/usr/sbin/ioreg", "-r", "-c", "AGXAccelerator", "-d", "2")
+	if err != nil {
+		return
+	}
+	for i := range section.Devices {
+		darwinApplyIORegistryGPU(&section.Devices[i], out)
+	}
+}
+
+func darwinUnifiedMemoryBytes(ctx context.Context) uint64 {
+	if value := darwinPhysicalMemoryBytes(); value != 0 {
+		return value
+	}
+
+	out, err := darwinCommand(ctx, "/usr/bin/vm_stat")
+	if err != nil {
+		return 0
+	}
+	value, ok := darwinUnifiedMemoryBytesFromVMStat(out)
+	if !ok {
+		return 0
+	}
+	return value
+}
+
+func darwinUnifiedMemoryBytesFromVMStat(out []byte) (uint64, bool) {
+	section, err := darwinMemoryFromVMStat(out, 0)
+	if err != nil || section.TotalBytes == nil {
+		return 0, false
+	}
+	return *section.TotalBytes, true
+}
+
+func darwinApplyUnifiedMemoryTotal(device *schema.GPUDevice, unifiedMemoryBytes uint64) {
+	if unifiedMemoryBytes == 0 || device.MemoryTotalBytes != nil || device.Vendor != "Apple" {
+		return
+	}
+	device.MemoryTotalBytes = &unifiedMemoryBytes
+}
+
+func darwinApplyIORegistryGPU(device *schema.GPUDevice, out []byte) {
+	stats := darwinIORegistryGPUStatistics(out)
+	if len(stats) == 0 {
+		return
+	}
+
+	if value, ok := stats["In use system memory"]; ok && value >= 0 {
+		memoryUsed := uint64(value)
+		device.MemoryUsedBytes = &memoryUsed
+	}
+	if value, ok := stats["Device Utilization %"]; ok {
+		if value < 0 {
+			value = 0
+		}
+		if value > 100 {
+			value = 100
+		}
+		device.Utilization = &value
+	}
+}
+
+func darwinIORegistryGPUStatistics(out []byte) map[string]float64 {
+	matches := darwinIORegistryGPUStats.FindStringSubmatch(string(out))
+	if len(matches) != 2 {
+		return nil
+	}
+
+	stats := map[string]float64{}
+	for _, match := range darwinIORegistryNumber.FindAllStringSubmatch(matches[1], -1) {
+		if len(match) != 3 {
+			continue
+		}
+		value, err := strconv.ParseFloat(match[2], 64)
+		if err != nil {
+			continue
+		}
+		stats[match[1]] = value
+	}
+	return stats
 }
 
 func firstString(values map[string]any, keys ...string) string {
