@@ -35,7 +35,7 @@ func TestSnapshotIncludesStableIdentityAndPlatform(t *testing.T) {
 	}
 }
 
-func TestSnapshotIncludesAvailableCPUAndUnsupportedGPU(t *testing.T) {
+func TestSnapshotIncludesAvailableCPUAndExplicitGPUStatus(t *testing.T) {
 	service := collector.NewService()
 
 	snapshot := service.Snapshot(context.Background())
@@ -49,11 +49,14 @@ func TestSnapshotIncludesAvailableCPUAndUnsupportedGPU(t *testing.T) {
 	if snapshot.CPU.CoreCount != runtime.NumCPU() {
 		t.Fatalf("CPU.CoreCount = %d, want %d", snapshot.CPU.CoreCount, runtime.NumCPU())
 	}
-	if snapshot.GPU.Status != schema.StatusUnsupported {
-		t.Fatalf("GPU.Status = %q, want %q", snapshot.GPU.Status, schema.StatusUnsupported)
+	if snapshot.GPU.Status == "" {
+		t.Fatal("GPU.Status is empty")
 	}
-	if snapshot.GPU.Scope != schema.ScopeUnavailable {
-		t.Fatalf("GPU.Scope = %q, want %q", snapshot.GPU.Scope, schema.ScopeUnavailable)
+	if snapshot.GPU.Scope == "" {
+		t.Fatal("GPU.Scope is empty")
+	}
+	if snapshot.GPU.Status == schema.StatusAvailable && len(snapshot.GPU.Devices) == 0 {
+		t.Fatal("GPU.Devices is empty for available GPU section")
 	}
 }
 

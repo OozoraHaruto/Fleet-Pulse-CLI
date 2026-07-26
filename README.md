@@ -18,7 +18,7 @@ The project currently includes the core agent, API contract, authentication/conf
 
 ## Current Collector Status
 
-FleetPulse already returns a stable API shape. The initial collector implementation reports host identity, platform, architecture, CPU core count, and explicit unsupported/unavailable sections for metrics that still need platform-specific collectors.
+FleetPulse already returns a stable API shape. On macOS, the collector reports host identity, platform, architecture, CPU core count, memory totals, mounted volume capacity, GPU identity, uptime, and load averages. Other platforms keep explicit unsupported/unavailable sections for metrics that still need platform-specific collectors.
 
 That means clients can integrate against the v1 schema now without treating missing hardware or unsupported metrics as API failures.
 

@@ -114,29 +114,20 @@ func (s *Service) CPU(context.Context) schema.CPUSection {
 	}
 }
 
-func (s *Service) Memory(context.Context) schema.MemorySection {
-	return schema.MemorySection{
-		SectionStatus: unsupported("memory collection requires a platform-specific collector"),
-	}
+func (s *Service) Memory(ctx context.Context) schema.MemorySection {
+	return collectMemory(ctx)
 }
 
-func (s *Service) Disks(context.Context) schema.DisksSection {
-	return schema.DisksSection{
-		SectionStatus: unsupported("disk collection requires a platform-specific collector"),
-		Volumes:       []schema.Volume{},
-	}
+func (s *Service) Disks(ctx context.Context) schema.DisksSection {
+	return collectDisks(ctx)
 }
 
-func (s *Service) GPU(context.Context) schema.GPUSection {
-	return schema.GPUSection{
-		SectionStatus: unsupported("gpu collection requires a vendor-specific collector"),
-	}
+func (s *Service) GPU(ctx context.Context) schema.GPUSection {
+	return collectGPU(ctx)
 }
 
-func (s *Service) System(context.Context) schema.SystemSection {
-	return schema.SystemSection{
-		SectionStatus: unsupported("system uptime and load require a platform-specific collector"),
-	}
+func (s *Service) System(ctx context.Context) schema.SystemSection {
+	return collectSystem(ctx, s.now())
 }
 
 func (s *Service) target() schema.TargetIdentity {
@@ -173,6 +164,14 @@ func (s *Service) unavailableSnapshot(now time.Time, err error) schema.Snapshot 
 func unsupported(reason string) schema.SectionStatus {
 	return schema.SectionStatus{
 		Status: schema.StatusUnsupported,
+		Scope:  schema.ScopeUnavailable,
+		Error:  reason,
+	}
+}
+
+func unavailable(reason string) schema.SectionStatus {
+	return schema.SectionStatus{
+		Status: schema.StatusUnavailable,
 		Scope:  schema.ScopeUnavailable,
 		Error:  reason,
 	}
