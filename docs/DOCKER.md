@@ -42,7 +42,7 @@ Release builds publish a standard image plus GPU-tooling variants:
 - `ghcr.io/<owner>/<repo>:<version>-rocm`
 - `ghcr.io/<owner>/<repo>:<version>-intel-gpu`
 
-The `-cuda` image is based on NVIDIA's CUDA image and sets the driver capabilities needed for `nvidia-smi`. Run it with NVIDIA GPU access enabled:
+The `-cuda` image is based on NVIDIA's CUDA 11.8 image and sets the driver capabilities needed for `nvidia-smi`. FleetPulse uses CUDA 11.8 intentionally because it keeps the host driver requirement much lower than newer CUDA 13 images while still supporting the NVIDIA metrics collector. Run it with NVIDIA GPU access enabled:
 
 ```sh
 docker run --rm --gpus all --entrypoint nvidia-smi fleetpulse:local-cuda

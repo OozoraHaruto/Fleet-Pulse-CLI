@@ -25,9 +25,10 @@ reject_contains() {
   fi
 }
 
-require_contains Dockerfile "FROM nvidia/cuda:" "NVIDIA CUDA runtime base image"
+require_contains Dockerfile "FROM nvidia/cuda:11.8.0-base-ubuntu22.04 AS cuda" "driver-compatible NVIDIA CUDA runtime base image"
 require_contains Dockerfile "AS cuda" "named CUDA image target"
 require_contains Dockerfile "NVIDIA_DRIVER_CAPABILITIES=compute,utility" "nvidia-smi driver capability"
+reject_contains Dockerfile "nvidia/cuda:13." "CUDA 13 image with high host-driver requirement"
 require_contains Dockerfile "FROM rocm/dev-ubuntu-24.04:" "AMD ROCm runtime base image"
 require_contains Dockerfile "AS rocm" "named ROCm image target"
 require_contains Dockerfile "FROM ubuntu:24.04 AS intel-gpu" "named Intel GPU image target"

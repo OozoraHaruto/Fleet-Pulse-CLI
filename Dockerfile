@@ -7,7 +7,7 @@ COPY cmd ./cmd
 COPY internal ./internal
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" -o /out/fleetpulse ./cmd/fleetpulse
 
-FROM nvidia/cuda:13.3.0-base-ubuntu24.04 AS cuda
+FROM nvidia/cuda:11.8.0-base-ubuntu22.04 AS cuda
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
 RUN groupadd --system fleetpulse && useradd --system --gid fleetpulse --home-dir /var/lib/fleetpulse --shell /usr/sbin/nologin fleetpulse
