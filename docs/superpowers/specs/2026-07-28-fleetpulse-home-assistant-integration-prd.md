@@ -9,8 +9,8 @@ Although users may casually call this a plugin, the deliverable is a Home Assist
 ## Goals
 
 - Install from HACS as a custom repository and work from `custom_components/fleetpulse`.
-- Configure the FleetPulse endpoint from the Home Assistant UI using `ip`, `port`, and `token`.
-- Validate the connection and token during setup before creating the config entry.
+- Configure the FleetPulse endpoint from the Home Assistant UI using a manual connection name, `ip`, `port`, and `token`.
+- Validate the connection, token, and minimum stats schema during setup before creating the config entry, device, or entities.
 - Poll only `GET /v1/stats`, because that response contains the full telemetry snapshot.
 - Represent every scalar value in the FleetPulse stats API as a Home Assistant sensor when it can be addressed safely.
 - Assign correct Home Assistant sensor metadata: device class, state class, native unit, entity category, and diagnostics classification where appropriate.
@@ -37,6 +37,7 @@ Primary users run FleetPulse on a host, server, Raspberry Pi, VM, container, or 
 Core use cases:
 
 - Add a FleetPulse host from the Home Assistant Integrations UI.
+- Manually name each FleetPulse connection so multiple hosts are easy to distinguish.
 - Store the API token securely in the Home Assistant config entry.
 - See CPU, memory, disk, GPU, system, target, schema, and status values as sensors.
 - Hide noisy sensors such as per-core CPU values, individual mount points, status details, or GPU details.
@@ -72,10 +73,10 @@ tests/
 
 The setup form asks for:
 
+- `name`: manual connection name, required, default empty, shown in the same setup form as the endpoint fields.
 - `ip`: host or IP address, required.
 - `port`: integer TCP port, required, default `35338`.
 - `token`: bearer token, required, stored in the config entry.
-- `name`: optional display name, defaulting to the target hostname returned by FleetPulse.
 - `ssl`: optional boolean, default `false`.
 
 On submit, the integration calls:
@@ -85,7 +86,7 @@ GET http://<ip>:<port>/v1/stats
 Authorization: Bearer <token>
 ```
 
-If `ssl` is true, use `https`. The setup flow validates that the response is JSON, has `schema_version`, `timestamp`, `target`, and known metric section objects, and is not an authentication failure.
+If `ssl` is true, use `https`. The setup flow validates that the response is JSON, has `schema_version`, `timestamp`, `target`, and known metric section objects, and is not an authentication failure. The integration must not create the Home Assistant config entry, device, or entities until this validation succeeds.
 
 Failure handling:
 
@@ -100,12 +101,13 @@ The unique ID should be stable per FleetPulse target. Prefer `target.machine_id`
 
 The integration must support a reconfigure flow for setup data that may change:
 
+- `name`
 - `ip`
 - `port`
 - `token`
 - `ssl`
 
-The reconfigure flow validates the new settings against `/v1/stats`, updates the existing config entry, and reloads it. It must not create a second entry for the same target.
+The reconfigure flow validates the new endpoint and token settings against `/v1/stats`, updates the existing config entry, and reloads it. It must not create a second entry for the same target. Renaming the connection should update the device name and future suggested entity IDs, but it must not change stable entity unique IDs.
 
 ### Options Flow
 
@@ -165,7 +167,7 @@ Device identifiers:
 
 Device metadata:
 
-- Name: user-provided name or `target.hostname`.
+- Name: user-provided connection name.
 - Manufacturer: `FleetPulse`.
 - Model: `<platform> <architecture>`.
 - Software version: `schema_version`.
@@ -176,6 +178,22 @@ Entity unique IDs use:
 ```text
 <device_identifier>_<sensor_key>
 ```
+
+Unique IDs must not include the user-editable connection name. This keeps entity registry identity stable if the user renames the connection.
+
+Default suggested Home Assistant entity IDs use:
+
+```text
+sensor.fleetpulse_<connection_slug>_<sensor_slug>
+```
+
+Examples:
+
+- `sensor.fleetpulse_server_room_cpu_utilization_percent`
+- `sensor.fleetpulse_nas_memory_available_bytes`
+- `sensor.fleetpulse_mac_mini_gpu_0_apple_m2_gpu_temperature_celsius`
+
+`connection_slug` comes from the manual connection name. `sensor_slug` comes from the stable sensor key. The implementation should set this as the initial/suggested object ID where Home Assistant allows it, while respecting user-renamed entity IDs in the entity registry.
 
 Sensor keys are lowercase, ASCII, and stable across restarts. Dynamic list keys must include a deterministic index plus a sanitized identity when available.
 
@@ -374,11 +392,15 @@ Unit tests must cover:
 - API client builds the correct URL for HTTP and HTTPS.
 - API client sends `Authorization: Bearer <token>`.
 - API client maps timeout, auth, invalid JSON, and schema failures to typed exceptions.
+- Config flow requires or captures a manual connection name.
 - Config flow creates an entry after a valid stats response.
 - Config flow rejects invalid auth and connection errors.
+- Config flow does not create an entry, device, or entities when validation fails.
 - Reconfigure updates the existing entry instead of creating a second entry.
+- Reconfigure can update the manual connection name without changing entity unique IDs.
 - Options flow stores `exclude` and `include` mode correctly.
 - Sensor description registry includes every field listed in this PRD.
+- Default suggested entity IDs follow `sensor.fleetpulse_<connection_slug>_<sensor_slug>`.
 - Numeric zero values remain valid sensor states.
 - Missing nullable values produce unavailable sensors.
 - Per-core, per-disk, disk-health, and per-GPU sensors use stable keys.
@@ -396,7 +418,7 @@ README must include:
 
 - HACS custom repository installation steps.
 - Home Assistant setup steps.
-- Required FleetPulse URL and token configuration.
+- Required manual connection name, FleetPulse URL, and token configuration.
 - Explanation of include and exclude sensor filtering.
 - Example sensors users should expect to see.
 - Troubleshooting for connection errors, invalid token, missing sensors, and unsupported collectors.
@@ -406,8 +428,10 @@ README must include:
 
 - A user can add the repo to HACS as an integration and install it.
 - Home Assistant discovers the custom integration after restart.
-- The UI config flow accepts valid `ip`, `port`, and `token` values.
+- The UI config flow accepts a manual connection name plus valid `ip`, `port`, and `token` values.
+- The config flow validates `/v1/stats` connectivity before creating the config entry, device, or entities.
 - A valid FleetPulse `/v1/stats` response creates sensor entities for all mapped API fields.
+- Newly created entities use default suggested IDs shaped like `sensor.fleetpulse_<connection_slug>_<sensor_slug>`.
 - The options flow can hide selected sensors in `exclude` mode.
 - The options flow can show only selected sensors in `include` mode.
 - Reconfiguration can update endpoint details and token without deleting the config entry.
