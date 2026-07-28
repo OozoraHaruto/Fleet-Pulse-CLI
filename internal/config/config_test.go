@@ -3,20 +3,30 @@ package config_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/haruto/fleetpulse/internal/config"
 )
 
-func TestDefaultConfigIsLocalAndUnauthenticated(t *testing.T) {
+func TestDefaultConfigIsNetworkBoundAndAuthenticated(t *testing.T) {
 	cfg := config.Default()
 
-	if cfg.Addr != "127.0.0.1:35338" {
-		t.Fatalf("Addr = %q, want 127.0.0.1:35338", cfg.Addr)
+	if cfg.Addr != "0.0.0.0:35338" {
+		t.Fatalf("Addr = %q, want 0.0.0.0:35338", cfg.Addr)
 	}
-	if cfg.AuthEnabled {
-		t.Fatal("AuthEnabled = true, want false for local default")
+	if !cfg.AuthEnabled {
+		t.Fatal("AuthEnabled = false, want true for network default")
+	}
+	if cfg.TokenFile == "" {
+		t.Fatal("TokenFile is empty")
+	}
+	if !strings.Contains(filepath.ToSlash(cfg.TokenFile), "fleetpulse") {
+		t.Fatalf("TokenFile = %q, want path containing fleetpulse", cfg.TokenFile)
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate rejected default config: %v", err)
 	}
 	if cfg.CacheTTL != 10*time.Second {
 		t.Fatalf("CacheTTL = %s, want 10s", cfg.CacheTTL)

@@ -3,8 +3,10 @@
 ## Serve
 
 ```sh
-fleetpulse serve -addr 127.0.0.1:35338
+fleetpulse serve
 ```
+
+By default, `serve` binds to `0.0.0.0:35338` with bearer authentication enabled.
 
 Important flags:
 

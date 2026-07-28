@@ -56,10 +56,10 @@ func TestRunConfigShowIncludesSafeDefaults(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0; stderr = %s", code, stderr.String())
 	}
-	if !strings.Contains(stdout.String(), `"addr": "127.0.0.1:35338"`) {
+	if !strings.Contains(stdout.String(), `"addr": "0.0.0.0:35338"`) {
 		t.Fatalf("config output missing default addr: %s", stdout.String())
 	}
-	if !strings.Contains(stdout.String(), `"auth_enabled": false`) {
+	if !strings.Contains(stdout.String(), `"auth_enabled": true`) {
 		t.Fatalf("config output missing auth default: %s", stdout.String())
 	}
 }
@@ -76,8 +76,20 @@ func TestRunServePrintsStartupBanner(t *testing.T) {
 	defer func() { version = previousVersion }()
 
 	var stdout, stderr bytes.Buffer
+	tokenPath := filepath.Join(t.TempDir(), "token")
+	if _, _, err := token.EnsureFile(tokenPath); err != nil {
+		t.Fatal(err)
+	}
 
-	code := run([]string{"serve", "-addr", listener.Addr().String()}, &stdout, &stderr)
+	code := run(
+		[]string{
+			"serve",
+			"-addr", listener.Addr().String(),
+			"-token-file", tokenPath,
+		},
+		&stdout,
+		&stderr,
+	)
 
 	if code != 1 {
 		t.Fatalf("exit code = %d, want listen failure; stderr = %s", code, stderr.String())

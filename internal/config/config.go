@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -28,8 +29,8 @@ type Config struct {
 
 func Default() Config {
 	return Config{
-		Addr:              "127.0.0.1:35338",
-		AuthEnabled:       false,
+		Addr:              "0.0.0.0:35338",
+		AuthEnabled:       true,
 		TokenFile:         defaultTokenFile(),
 		CacheTTL:          10 * time.Second,
 		CollectorTimeout:  2 * time.Second,
@@ -188,8 +189,8 @@ func IsNonLocalAddr(addr string) bool {
 }
 
 func defaultTokenFile() string {
-	if runtime.GOOS == "windows" {
-		return `C:\ProgramData\FleetPulse\token`
+	if configDir, err := os.UserConfigDir(); err == nil && configDir != "" {
+		return filepath.Join(configDir, "fleetpulse", "token")
 	}
-	return "/var/lib/fleetpulse/token"
+	return filepath.Join(".", ".fleetpulse", "token")
 }

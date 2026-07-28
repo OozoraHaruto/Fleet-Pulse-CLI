@@ -37,8 +37,8 @@ clear_quarantine "$PREFIX/bin/fleetpulse"
 if [ ! -f "$CONFIG_DIR/fleetpulse.json" ]; then
   cat >"$CONFIG_DIR/fleetpulse.json" <<EOF
 {
-  "addr": "127.0.0.1:35338",
-  "auth_enabled": false,
+  "addr": "0.0.0.0:35338",
+  "auth_enabled": true,
   "token_file": "$STATE_DIR/token",
   "cache_ttl": "10s",
   "collector_timeout": "2s",

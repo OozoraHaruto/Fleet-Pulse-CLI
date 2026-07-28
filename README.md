@@ -30,10 +30,10 @@ Build the agent:
 go build -o fleetpulse ./cmd/fleetpulse
 ```
 
-Run locally without authentication:
+Run with the default network bind and bearer authentication:
 
 ```sh
-./fleetpulse serve -addr 127.0.0.1:35338
+./fleetpulse serve
 ```
 
 Check health:
@@ -45,14 +45,15 @@ curl http://127.0.0.1:35338/health
 Fetch the full telemetry snapshot:
 
 ```sh
-curl http://127.0.0.1:35338/v1/stats
+curl -H "Authorization: Bearer <token>" http://127.0.0.1:35338/v1/stats
 ```
 
 ## Authentication
 
-FleetPulse refuses to bind to a non-local interface without authentication enabled.
+FleetPulse binds to `0.0.0.0:35338` with authentication enabled by default.
+It refuses to bind to a non-local interface without authentication enabled.
 
-Run a network-exposed instance:
+Override the default bind explicitly:
 
 ```sh
 ./fleetpulse serve \
