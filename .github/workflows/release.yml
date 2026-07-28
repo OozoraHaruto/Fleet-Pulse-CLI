@@ -120,6 +120,9 @@ jobs:
       - name: Check release version resolution
         run: bash tests/release-version.sh
 
+      - name: Check Linux installer migration
+        run: bash tests/linux-install-migrates-bind-config.sh
+
       - name: Check macOS installer clears quarantine
         run: bash tests/macos-install-clears-quarantine.sh
 

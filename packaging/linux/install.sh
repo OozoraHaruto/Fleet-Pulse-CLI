@@ -45,6 +45,16 @@ if [ ! -f "$CONFIG_DIR/fleetpulse.json" ]; then
 EOF
   chmod 0640 "$CONFIG_DIR/fleetpulse.json"
   chown "$SERVICE_USER:$SERVICE_GROUP" "$CONFIG_DIR/fleetpulse.json"
+elif grep -Eq '"addr"[[:space:]]*:[[:space:]]*"127[.]0[.]0[.]1:35338"' "$CONFIG_DIR/fleetpulse.json" &&
+  grep -Eq '"auth_enabled"[[:space:]]*:[[:space:]]*false' "$CONFIG_DIR/fleetpulse.json"; then
+  tmp_config="$(mktemp "$CONFIG_DIR/fleetpulse.json.XXXXXX")"
+  sed \
+    -e 's/"addr"[[:space:]]*:[[:space:]]*"127[.]0[.]0[.]1:35338"/"addr": "0.0.0.0:35338"/' \
+    -e 's/"auth_enabled"[[:space:]]*:[[:space:]]*false/"auth_enabled": true/' \
+    "$CONFIG_DIR/fleetpulse.json" >"$tmp_config"
+  chmod 0640 "$tmp_config"
+  chown "$SERVICE_USER:$SERVICE_GROUP" "$tmp_config"
+  mv "$tmp_config" "$CONFIG_DIR/fleetpulse.json"
 fi
 
 if ! "$PREFIX/bin/fleetpulse" token show -token-file "$STATE_DIR/token" >/dev/null 2>&1; then
