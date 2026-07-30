@@ -14,10 +14,33 @@ import (
 	"github.com/haruto/fleetpulse/internal/schema"
 )
 
-func collectCPU(context.Context) schema.CPUSection {
+const linuxCPUStatSampleInterval = 100 * time.Millisecond
+
+func collectCPU(ctx context.Context) schema.CPUSection {
+	coreCount := runtime.NumCPU()
+	first, err := os.ReadFile("/proc/stat")
+	if err != nil {
+		return linuxCPUFallback(coreCount)
+	}
+	if err := linuxWait(ctx, linuxCPUStatSampleInterval); err != nil {
+		return linuxCPUFallback(coreCount)
+	}
+	second, err := os.ReadFile("/proc/stat")
+	if err != nil {
+		return linuxCPUFallback(coreCount)
+	}
+
+	section, err := linuxCPUFromProcStat(first, second, coreCount)
+	if err != nil {
+		return linuxCPUFallback(coreCount)
+	}
+	return section
+}
+
+func linuxCPUFallback(coreCount int) schema.CPUSection {
 	return schema.CPUSection{
 		SectionStatus: schema.SectionStatus{Status: schema.StatusAvailable, Scope: schema.ScopeHost},
-		CoreCount:     runtime.NumCPU(),
+		CoreCount:     coreCount,
 	}
 }
 
@@ -36,6 +59,18 @@ func collectMemory(context.Context) schema.MemorySection {
 		}
 	}
 	return section
+}
+
+func linuxWait(ctx context.Context, duration time.Duration) error {
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+
+	select {
+	case <-timer.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func collectDisks(context.Context) schema.DisksSection {
