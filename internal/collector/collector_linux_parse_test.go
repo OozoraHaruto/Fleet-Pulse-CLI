@@ -38,6 +38,9 @@ SwapCached:            0 kB
 	if got := linuxValue(t, section.UsedBytes); got != 1_048_576_000 {
 		t.Fatalf("UsedBytes = %d, want %d", got, uint64(1_048_576_000))
 	}
+	if section.PercentUsed == nil || *section.PercentUsed != 25 {
+		t.Fatalf("PercentUsed = %v, want 25", section.PercentUsed)
+	}
 }
 
 func TestLinuxMemoryFromMemInfoDerivesAvailableWhenMissing(t *testing.T) {
@@ -59,6 +62,9 @@ Shmem:             16000 kB
 	}
 	if got := linuxValue(t, section.UsedBytes); got != 573_440_000 {
 		t.Fatalf("UsedBytes = %d, want %d", got, uint64(573_440_000))
+	}
+	if section.PercentUsed == nil || *section.PercentUsed != 54.6875 {
+		t.Fatalf("PercentUsed = %v, want 54.6875", section.PercentUsed)
 	}
 }
 

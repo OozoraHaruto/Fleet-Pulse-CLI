@@ -250,6 +250,7 @@ func darwinMemoryFromVMStat(out []byte, physicalMemoryBytes uint64) (schema.Memo
 		available = total
 	}
 	used := total - available
+	percentUsed := (float64(used) / float64(total)) * 100
 
 	return schema.MemorySection{
 		SectionStatus:  schema.SectionStatus{Status: schema.StatusAvailable, Scope: schema.ScopeHost},
@@ -257,6 +258,7 @@ func darwinMemoryFromVMStat(out []byte, physicalMemoryBytes uint64) (schema.Memo
 		UsedBytes:      &used,
 		FreeBytes:      &free,
 		AvailableBytes: &available,
+		PercentUsed:    &percentUsed,
 	}, nil
 }
 

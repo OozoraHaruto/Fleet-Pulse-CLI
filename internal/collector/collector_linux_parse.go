@@ -196,6 +196,7 @@ func linuxMemoryFromMemInfo(out []byte) (schema.MemorySection, error) {
 		available = total
 	}
 	used := total - available
+	percentUsed := (float64(used) / float64(total)) * 100
 
 	return schema.MemorySection{
 		SectionStatus:  schema.SectionStatus{Status: schema.StatusAvailable, Scope: schema.ScopeHost},
@@ -203,6 +204,7 @@ func linuxMemoryFromMemInfo(out []byte) (schema.MemorySection, error) {
 		UsedBytes:      &used,
 		FreeBytes:      &free,
 		AvailableBytes: &available,
+		PercentUsed:    &percentUsed,
 	}, nil
 }
 

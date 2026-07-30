@@ -72,10 +72,11 @@ type CPUSection struct {
 
 type MemorySection struct {
 	SectionStatus
-	TotalBytes     *uint64 `json:"total_bytes"`
-	UsedBytes      *uint64 `json:"used_bytes"`
-	FreeBytes      *uint64 `json:"free_bytes"`
-	AvailableBytes *uint64 `json:"available_bytes"`
+	TotalBytes     *uint64  `json:"total_bytes"`
+	UsedBytes      *uint64  `json:"used_bytes"`
+	FreeBytes      *uint64  `json:"free_bytes"`
+	AvailableBytes *uint64  `json:"available_bytes"`
+	PercentUsed    *float64 `json:"percent_used"`
 }
 
 type DisksSection struct {

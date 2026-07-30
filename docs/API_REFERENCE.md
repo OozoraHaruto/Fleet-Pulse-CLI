@@ -30,6 +30,16 @@ Each metric section includes:
 
 Zero values remain distinct from unavailable values because nullable numeric fields are encoded as JSON `null` when not known.
 
+## Memory Fields
+
+The `memory` section reports host memory byte counters and utilization:
+
+- `total_bytes`: total memory in bytes.
+- `used_bytes`: memory used in bytes.
+- `free_bytes`: free memory in bytes.
+- `available_bytes`: memory available to applications in bytes.
+- `percent_used`: used memory as a percentage of total memory.
+
 ## Linux GPU Discovery
 
 Linux GPU detection tries Raspberry Pi/VideoCore, NVIDIA, AMD, Intel, and generic DRM/sysfs paths. Discovery is cached in `/var/lib/fleetpulse/gpu-discovery.json`; remove that file to force rediscovery.

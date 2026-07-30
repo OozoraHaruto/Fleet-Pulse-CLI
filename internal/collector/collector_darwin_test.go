@@ -69,6 +69,9 @@ Pages occupied by compressor:                    75.
 	if got := value(t, section.UsedBytes); got != 12_697_600 {
 		t.Fatalf("UsedBytes = %d, want %d", got, uint64(12_697_600))
 	}
+	if section.PercentUsed == nil || *section.PercentUsed != 62 {
+		t.Fatalf("PercentUsed = %v, want 62", section.PercentUsed)
+	}
 }
 
 func TestDarwinSystemParsersReturnUptimeAndLoad(t *testing.T) {

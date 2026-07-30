@@ -262,6 +262,7 @@ Examples:
 | `memory_used_bytes` | `memory.used_bytes` | data_size | measurement | bytes | none |
 | `memory_free_bytes` | `memory.free_bytes` | data_size | measurement | bytes | none |
 | `memory_available_bytes` | `memory.available_bytes` | data_size | measurement | bytes | none |
+| `memory_percent_used` | `memory.percent_used` | none | measurement | `%` | none |
 
 ### Disk Sensors
 

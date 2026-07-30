@@ -27,6 +27,13 @@ func TestSnapshotJSONDistinguishesZeroFromUnavailable(t *testing.T) {
 			CoreCount:   8,
 			Utilization: &zero,
 		},
+		Memory: schema.MemorySection{
+			SectionStatus: schema.SectionStatus{
+				Status: schema.StatusAvailable,
+				Scope:  schema.ScopeHost,
+			},
+			PercentUsed: &zero,
+		},
 		GPU: schema.GPUSection{
 			SectionStatus: schema.SectionStatus{
 				Status: schema.StatusUnsupported,
@@ -44,6 +51,7 @@ func TestSnapshotJSONDistinguishesZeroFromUnavailable(t *testing.T) {
 		`"schema_version":"v1"`,
 		`"hostname":"node-a"`,
 		`"utilization_percent":0`,
+		`"percent_used":0`,
 		`"gpu":{"status":"unsupported","scope":"unavailable"`,
 	}
 	for _, want := range wantFragments {
