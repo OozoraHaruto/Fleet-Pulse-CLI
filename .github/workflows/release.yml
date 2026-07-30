@@ -269,14 +269,14 @@ jobs:
       - release
       - docker
     steps:
-      - name: Remove existing CI prerelease
+      - name: Replace existing CI prerelease
         if: needs.metadata.outputs.prerelease == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
         run: |
           if gh release view "$RELEASE_VERSION" >/dev/null 2>&1; then
-            gh release delete "$RELEASE_VERSION" --cleanup-tag --yes
+            gh release delete "$RELEASE_VERSION" --yes
           fi
 
       - name: Download artifacts
@@ -293,4 +293,6 @@ jobs:
           name: FleetPulse ${{ needs.metadata.outputs.version }}
           files: dist/*
           generate_release_notes: true
+          draft: false
           prerelease: ${{ needs.metadata.outputs.prerelease }}
+          make_latest: ${{ needs.metadata.outputs.prerelease == 'false' }}

@@ -29,7 +29,7 @@ The CI workflow resolves artifact versions from `origin/main:version.txt` when t
 
 The `Release` GitHub Actions workflow runs automatically for pushes to `main` and publishes a GitHub prerelease using the same `-ci.<run>.<sha>` suffix. It also runs for matching semver tags like `v1.2.3` and can be started manually with `workflow_dispatch`; those final releases use the exact value in `version.txt` and are not marked as prereleases. Tag releases fail if the pushed tag does not match `version.txt`.
 
-Before building artifacts, pushing Docker images, deleting/replacing an existing CI prerelease, or publishing a GitHub release, the release workflow runs formatting, Go tests, binary build, packaging script checks, release layout checks, installer tests, and Docker build validation.
+Before building artifacts, pushing Docker images, replacing an existing CI prerelease, or publishing a GitHub release, the release workflow runs formatting, Go tests, binary build, packaging script checks, release layout checks, installer tests, and Docker build validation. CI prerelease replacement deletes only the release record for the exact CI version; it does not delete the backing tag.
 
 Docker releases publish `ghcr.io/<owner>/<repo>:<version>`, `ghcr.io/<owner>/<repo>:<version>-cuda`, `ghcr.io/<owner>/<repo>:<version>-rocm`, and `ghcr.io/<owner>/<repo>:<version>-intel-gpu`. The GPU-tooling images are intended for Docker hosts configured with the matching host GPU devices and drivers.
 

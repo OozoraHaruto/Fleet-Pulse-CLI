@@ -42,3 +42,6 @@ require_contains .github/workflows/release.yml "docker/login-action@v4" "Node 24
 require_contains .github/workflows/release.yml "softprops/action-gh-release@v3" "Node 24 GitHub release action"
 require_contains .github/workflows/ci.yml "cache-dependency-path: go.mod" "setup-go cache dependency path"
 require_contains .github/workflows/release.yml "cache-dependency-path: go.mod" "setup-go cache dependency path"
+require_contains .github/workflows/release.yml "draft: false" "explicit published release state"
+require_contains .github/workflows/release.yml "make_latest: \${{ needs.metadata.outputs.prerelease == 'false' }}" "stable-only latest release selection"
+reject_contains .github/workflows/release.yml "--cleanup-tag" "release tag cleanup during CI prerelease replacement"
